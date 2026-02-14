@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Gear Ratio Coach — Vook One 2.0 Edition</title>
+    <meta name="description" content="公路车/瓜车齿比功率计算器，支持 1x/2x 传动系统，Vook One 2.0 默认配置。">
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="齿比教练">
+    <link rel="apple-touch-icon" href="icon-512.png">
+    <meta name="theme-color" content="#007AFF" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+    <!-- Dependencies -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+
+    <style>
+        /* ── CSS Variables: Light (default) ── */
+        :root {
+            color-scheme: light dark;
+            --bg-base: #f5f5f7;
+            --bg-gradient-from: #e5e5ea;
+            --bg-gradient-to: #f2f2f7;
+            --bg-blob-a: rgba(0, 122, 255, 0.06);
+            --bg-blob-b: rgba(175, 82, 222, 0.05);
+            --glass-bg: rgba(255, 255, 255, 0.72);
+            --glass-border: rgba(255, 255, 255, 0.8);
+            --glass-border-outer: rgba(0, 0, 0, 0.04);
+            --glass-shadow: 0 8px 40px rgba(0, 0, 0, 0.06), 0 1.5px 4px rgba(0, 0, 0, 0.03);
+            --glass-highlight: rgba(255, 255, 255, 0.9);
+            --text-primary: #1d1d1f;
+            --text-secondary: #6e6e73;
+            --text-tertiary: #aeaeb2;
+            --accent: #007AFF;
+            --accent-glow: rgba(0, 122, 255, 0.15);
+            --card-inner: rgba(255, 255, 255, 0.6);
+            --input-bg: rgba(255, 255, 255, 0.5);
+            --input-border: rgba(255, 255, 255, 0.7);
+            --input-border-outer: rgba(0, 0, 0, 0.06);
+            --input-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+            --table-header-bg: rgba(0, 0, 0, 0.03);
+            --table-hover: rgba(0, 0, 0, 0.03);
+            --table-divider: rgba(0, 0, 0, 0.05);
+            --slider-track: rgba(0, 0, 0, 0.08);
+            --badge-purple-bg: rgba(88, 86, 214, 0.1);
+            --badge-purple-text: #5856D6;
+            --badge-purple-border: rgba(88, 86, 214, 0.2);
+            --badge-blue-bg: rgba(0, 122, 255, 0.1);
+            --badge-blue-text: #007AFF;
+            --badge-blue-border: rgba(0, 122, 255, 0.2);
+            --badge-yellow-bg: rgba(255, 149, 0, 0.1);
+            --badge-yellow-text: #c55100;
+            --badge-yellow-border: rgba(255, 149, 0, 0.2);
+            --badge-green-text: #34c759;
+            --badge-orange-text: #ff9500;
+            --badge-red-bg: rgba(255, 59, 48, 0.08);
+            --badge-red-text: #ff3b30;
+            --badge-red-border: rgba(255, 59, 48, 0.2);
+            --toggle-active: #007AFF;
+            --toggle-inactive: rgba(0, 0, 0, 0.08);
+            --section-icon-shadow: rgba(0, 0, 0, 0.1);
+        }
+
+        /* ── CSS Variables: Dark ── */
+        .dark {
+            color-scheme: dark;
+            --bg-base: #000000;
+            --bg-gradient-from: #0c0c0e;
+            --bg-gradient-to: #1c1c1e;
+            --bg-blob-a: rgba(0, 122, 255, 0.08);
+            --bg-blob-b: rgba(175, 82, 222, 0.06);
+            --glass-bg: rgba(44, 44, 46, 0.65);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --glass-border-outer: rgba(255, 255, 255, 0.04);
+            --glass-shadow: 0 8px 40px rgba(0, 0, 0, 0.4), 0 1.5px 4px rgba(0, 0, 0, 0.2);
+            --glass-highlight: rgba(255, 255, 255, 0.15);
+            --text-primary: #f5f5f7;
+            --text-secondary: #98989d;
+            --text-tertiary: #636366;
+            --accent: #0a84ff;
+            --accent-glow: rgba(10, 132, 255, 0.25);
+            --card-inner: rgba(255, 255, 255, 0.05);
+            --input-bg: rgba(255, 255, 255, 0.06);
+            --input-border: rgba(255, 255, 255, 0.1);
+            --input-border-outer: rgba(255, 255, 255, 0.03);
+            --input-shadow: 0 1px 3px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+            --table-header-bg: rgba(255, 255, 255, 0.04);
+            --table-hover: rgba(255, 255, 255, 0.04);
+            --table-divider: rgba(255, 255, 255, 0.06);
+            --slider-track: rgba(255, 255, 255, 0.1);
+            --badge-purple-bg: rgba(125, 122, 255, 0.15);
+            --badge-purple-text: #bf5af2;
+            --badge-purple-border: rgba(125, 122, 255, 0.25);
+            --badge-blue-bg: rgba(10, 132, 255, 0.15);
+            --badge-blue-text: #64d2ff;
+            --badge-blue-border: rgba(10, 132, 255, 0.25);
+            --badge-yellow-bg: rgba(255, 159, 10, 0.15);
+            --badge-yellow-text: #ff9f0a;
+            --badge-yellow-border: rgba(255, 159, 10, 0.25);
+            --badge-green-text: #30d158;
+            --badge-orange-text: #ff9f0a;
+            --badge-red-bg: rgba(255, 69, 58, 0.12);
+            --badge-red-text: #ff453a;
+            --badge-red-border: rgba(255, 69, 58, 0.25);
+            --toggle-active: #0a84ff;
+            --toggle-inactive: rgba(255, 255, 255, 0.1);
+            --section-icon-shadow: rgba(0, 0, 0, 0.3);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-base);
+            color: var(--text-primary);
+            transition: background 0.4s ease, color 0.3s ease;
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+            -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: none;
+            user-select: none;
+            margin: 0;
+        }
+
+        .tabular-nums,
+        td,
+        th {
+            -webkit-user-select: text;
+            user-select: text;
+        }
+
+        /* ── Background mesh ── */
+        .bg-mesh {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            background: linear-gradient(160deg, var(--bg-gradient-from), var(--bg-gradient-to));
+            transition: background 0.5s ease;
+        }
+
+        .bg-mesh::before,
+        .bg-mesh::after {
+            content: '';
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.8;
+            transition: background 0.5s ease;
+        }
+
+        .bg-mesh::before {
+            width: 600px;
+            height: 600px;
+            top: -10%;
+            left: -5%;
+            background: var(--bg-blob-a);
+        }
+
+        .bg-mesh::after {
+            width: 500px;
+            height: 500px;
+            bottom: -10%;
+            right: -5%;
+            background: var(--bg-blob-b);
+        }
+
+        /* ── Liquid Glass Panel ── */
+        .glass {
+            position: relative;
+            background: var(--glass-bg);
+            backdrop-filter: blur(60px) saturate(190%);
+            -webkit-backdrop-filter: blur(60px) saturate(190%);
+            border: 1px solid var(--glass-border);
+            outline: 1px solid var(--glass-border-outer);
+            outline-offset: -1px;
+            box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-highlight), inset 0 -1px 0 rgba(0, 0, 0, 0.02);
+            transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .glass::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 10%;
+            right: 10%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--glass-highlight) 50%, transparent);
+            border-radius: 0 0 50% 50%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* ── Form controls (Glass) ── */
+        select {
+            -webkit-appearance: none;
+            appearance: none;
+            background: var(--input-bg);
+            backdrop-filter: blur(20px) saturate(160%);
+            -webkit-backdrop-filter: blur(20px) saturate(160%);
+            border: 1px solid var(--input-border);
+            outline: 1px solid var(--input-border-outer);
+            outline-offset: -1px;
+            color: var(--text-primary);
+            box-shadow: var(--input-shadow);
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%236e6e73' viewBox='0 0 16 16'%3E%3Cpath d='M8 11.5l-5-5h10l-5 5z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding: 10px 36px 10px 12px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        select:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3.5px var(--accent-glow), var(--input-shadow);
+            outline: none;
+        }
+
+        select option {
+            background: var(--bg-base);
+            color: var(--text-primary);
+        }
+
+        input[type=number] {
+            background: transparent;
+            border: none;
+            border-bottom: 1.5px solid var(--text-tertiary);
+            color: var(--text-primary);
+            text-align: center;
+            font-weight: 700;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s ease;
+            padding: 4px 0;
+        }
+
+        input[type=number]:focus {
+            border-bottom-color: var(--accent);
+        }
+
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        /* ── Range Slider (Glass thumb) ── */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: transparent;
+            width: 100%;
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: var(--slider-track);
+            border-radius: 2px;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 24px;
+            height: 24px;
+            margin-top: -10px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px) saturate(180%);
+            -webkit-backdrop-filter: blur(10px) saturate(180%);
+            border: 1.5px solid var(--glass-border);
+            border-radius: 50%;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12), inset 0 1px 0 var(--glass-highlight);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+        }
+
+        input[type=range]::-webkit-slider-thumb:active {
+            transform: scale(1.05);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12), 0 0 0 4px var(--accent-glow);
+        }
+
+        /* ── Table ── */
+        .data-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 13px;
+        }
+
+        .data-table thead {
+            background: var(--table-header-bg);
+        }
+
+        .data-table th {
+            padding: 12px 16px;
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            text-align: left;
+            border-bottom: 1px solid var(--table-divider);
+        }
+
+        .data-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--table-divider);
+        }
+
+        .data-table tbody tr {
+            transition: background 0.15s ease;
+        }
+
+        .data-table tbody tr:hover {
+            background: var(--table-hover);
+        }
+
+        .data-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* ── Utility ── */
+        .section-icon {
+            padding: 10px;
+            border-radius: 12px;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px var(--section-icon-shadow);
+        }
+
+        .toggle-chip {
+            padding: 6px 16px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+        }
+
+        .toggle-chip.active {
+            background: var(--accent);
+            color: white;
+            box-shadow: 0 2px 12px var(--accent-glow);
+        }
+
+        .toggle-chip.inactive {
+            background: var(--input-bg);
+            color: var(--text-secondary);
+            backdrop-filter: blur(10px);
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 700;
+            border: 1px solid;
+        }
+
+        .badge-purple {
+            background: var(--badge-purple-bg);
+            color: var(--badge-purple-text);
+            border-color: var(--badge-purple-border);
+        }
+
+        .badge-blue {
+            background: var(--badge-blue-bg);
+            color: var(--badge-blue-text);
+            border-color: var(--badge-blue-border);
+        }
+
+        .badge-yellow {
+            background: var(--badge-yellow-bg);
+            color: var(--badge-yellow-text);
+            border-color: var(--badge-yellow-border);
+        }
+
+        .badge-red {
+            background: var(--badge-red-bg);
+            color: var(--badge-red-text);
+            border-color: var(--badge-red-border);
+        }
+
+        .cadence-bar {
+            height: 6px;
+            border-radius: 3px;
+            background: var(--slider-track);
+            overflow: hidden;
+        }
+
+        .cadence-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+        }
+
+        .info-row+.info-row {
+            border-top: 1px solid var(--table-divider);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease forwards;
+        }
+
+        /* ── Mobile: stack controls ── */
+        @media (max-width: 768px) {
+            .settings-grid {
+                grid-template-columns: 1fr 1fr !important;
+            }
+
+            .settings-grid>*:last-child {
+                grid-column: 1 / -1;
+            }
+
+            .sticky-settings {
+                position: relative !important;
+                top: auto !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="bg-mesh"></div>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useMemo, useEffect } = React;
+
+        // ── SVG Icons ──
+        const IconSettings = ({ size = 24 }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></svg>;
+        const IconWind = ({ size }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2" /><path d="M9.6 4.6A2 2 0 1 1 11 8H2" /><path d="M12.6 19.4A2 2 0 1 0 14 16H2" /></svg>;
+        const IconMountain = ({ size }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m8 3 4 8 5-5 5 15H2L8 3z" /></svg>;
+        const IconTrendingDown = ({ size }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6" /><polyline points="17 18 23 18 23 12" /></svg>;
+        const IconLightning = ({ size }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>;
+        const IconAlert = ({ size }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>;
+        const IconCheck = ({ size }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>;
+        const IconSun = ({ size = 20 }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" /></svg>;
+        const IconMoon = ({ size = 20 }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>;
+
+        const App = () => {
+            // ── Theme ──
+            const [isDark, setIsDark] = useState(() => {
+                const saved = localStorage.getItem('vook-gear-theme');
+                if (saved) return saved === 'dark';
+                return window.matchMedia('(prefers-color-scheme: dark)').matches;
+            });
+            useEffect(() => {
+                document.documentElement.classList.toggle('dark', isDark);
+            }, [isDark]);
+            const toggleTheme = () => {
+                setIsDark(prev => { const next = !prev; localStorage.setItem('vook-gear-theme', next ? 'dark' : 'light'); return next; });
+            };
+
+            // ── Presets ──
+            const presets = {
+                chainrings2x: [
+                    { label: '压缩盘 (50/34) - 爬坡', small: 34, big: 50 },
+                    { label: '半压缩 (52/36) - 综合', small: 36, big: 52 },
+                    { label: '标准盘 (53/39) - 竞技', small: 39, big: 53 },
+                    { label: '超压缩 (46/30) - 瓜车', small: 30, big: 46 },
+                    { label: 'Vook E-Trike (52/42)', small: 42, big: 52 },
+                ],
+                chainrings1x: [
+                    { label: 'Vook One 2.0 (50T)', small: 0, big: 50 },
+                    { label: '32T (山地/极限爬坡)', small: 0, big: 32 },
+                    { label: '34T (陡坡优化)', small: 0, big: 34 },
+                    { label: '36T (CX/轻度越野)', small: 0, big: 36 },
+                    { label: '38T (Gravel/越野)', small: 0, big: 38 },
+                    { label: '40T (Gravel标准)', small: 0, big: 40 },
+                    { label: '42T (城市/全能)', small: 0, big: 42 },
+                    { label: '44T (竞技Gravel)', small: 0, big: 44 },
+                    { label: '46T (绕圈赛/CX)', small: 0, big: 46 },
+                    { label: '48T (气动/平路)', small: 0, big: 48 },
+                    { label: '50T (铁三/计时)', small: 0, big: 50 },
+                    { label: '52T (专业竞技)', small: 0, big: 52 },
+                    { label: '54T (顶级冲刺)', small: 0, big: 54 },
+                ],
+                cassettes: [
+                    { label: '11-45T (Vook 13s)', min: 11, max: 45 },
+                    { label: '11-28T (平路)', min: 11, max: 28 },
+                    { label: '11-30T (综合)', min: 11, max: 30 },
+                    { label: '11-32T (爬坡)', min: 11, max: 32 },
+                    { label: '11-34T (爬墙)', min: 11, max: 34 },
+                    { label: '11-42T (单盘)', min: 11, max: 42 },
+                    { label: '10-44T (XPLR)', min: 10, max: 44 },
+                    { label: '10-50T (Eagle)', min: 10, max: 50 },
+                ]
+            };
+
+            // ── State ──
+            const [isSingleChainring, setIsSingleChainring] = useState(true);
+            const [chainring, setChainring] = useState(presets.chainrings1x[0]);
+            const [cassette, setCassette] = useState(presets.cassettes[0]);
+            const [cassetteSpeed, setCassetteSpeed] = useState(13);
+            const [tireWidth, setTireWidth] = useState(28);
+            const [slope, setSlope] = useState(5);
+            const [riderWeight, setRiderWeight] = useState(70);
+            const [bikeWeight, setBikeWeight] = useState(8.0);
+
+            useEffect(() => {
+                if (isSingleChainring) {
+                    setChainring(presets.chainrings1x[0]);
+                    if (cassette.max < 40) setCassette(presets.cassettes[0]);
+                } else {
+                    setChainring(presets.chainrings2x[0]);
+                }
+            }, [isSingleChainring]);
+
+            // ── Core Calculations ──
+            const generateCassetteCogs = (min, max, count) => {
+                let cogs = [];
+                for (let i = 0; i < count; i++) { cogs.push(Math.round(min + (max - min) * (i / (count - 1)))); }
+                return [...new Set(cogs)].sort((a, b) => b - a);
+            };
+            const cassetteCogs = useMemo(() => generateCassetteCogs(cassette.min, cassette.max, cassetteSpeed), [cassette, cassetteSpeed]);
+            const wheelCircumferenceMeters = (622 + 2 * tireWidth) * Math.PI / 1000;
+            const totalMass = riderWeight + bikeWeight;
+
+            const getChainStatus = (cogIndex, totalCogs, isBigRing) => {
+                if (isSingleChainring) return { status: 'ok', msg: '' };
+                if (isBigRing) {
+                    if (cogIndex < 2) return { status: 'bad', msg: '严重交叉' };
+                    if (cogIndex < 3) return { status: 'warn', msg: '轻微交叉' };
+                } else {
+                    if (cogIndex >= totalCogs - 2) return { status: 'bad', msg: '严重交叉' };
+                    if (cogIndex >= totalCogs - 3) return { status: 'warn', msg: '轻微交叉' };
+                }
+                return { status: 'ok', msg: '' };
+            };
+
+            const calculatePower = (speedKmH, slopePercent) => {
+                const v = speedKmH / 3.6, grade = slopePercent / 100, angle = Math.atan(grade), g = 9.81;
+                const crr = 0.005 + (tireWidth > 32 ? 0.002 : 0);
+                const pTotal = (totalMass * g * Math.sin(angle) * v + totalMass * g * Math.cos(angle) * crr * v + 0.5 * 0.35 * 1.225 * Math.pow(v, 3)) / 0.97;
+                return Math.max(0, Math.round(pTotal));
+            };
+
+            const calculateCadence = (speedKmH, front, rear) => {
+                if (!front || !rear || !wheelCircumferenceMeters) return 0;
+                const val = (speedKmH * 1000) / (60 * (front / rear) * wheelCircumferenceMeters);
+                return isFinite(val) ? val : 0;
+            };
+
+            const flatGuide = useMemo(() => {
+                const speeds = [10, 13, 15, 18, 20, 23, 25, 28, 30, 33, 35, 38, 40, 43, 45, 48, 50];
+                return speeds.map(targetSpeed => {
+                    let bestOption = null, minScore = 1000;
+                    const findBest = (ringSize, ringName) => {
+                        cassetteCogs.forEach((cog, idx) => {
+                            const status = getChainStatus(idx, cassetteCogs.length, ringName === '大盘');
+                            if (status.status === 'bad') return;
+                            const rpm = calculateCadence(targetSpeed, ringSize, cog);
+                            if (rpm < 55 || rpm > 115) return;
+                            let score = Math.abs(rpm - 90);
+                            if (!isSingleChainring) {
+                                if (ringName === '大盘' && targetSpeed < 25) score += 15;
+                                if (ringName === '小盘' && targetSpeed > 28) score += 15;
+                            }
+                            if (score < minScore) { minScore = score; bestOption = { ring: ringName, front: ringSize, rear: cog, rpm: Math.round(rpm), idx }; }
+                        });
+                    };
+                    if (isSingleChainring) { findBest(chainring.big, '单盘'); } else { findBest(chainring.small, '小盘'); findBest(chainring.big, '大盘'); }
+                    return { speed: targetSpeed, power: calculatePower(targetSpeed, 0), ...bestOption };
+                });
+            }, [chainring, cassetteCogs, isSingleChainring, tireWidth, totalMass]);
+
+            const slopeGuide = useMemo(() => {
+                let estimatedClimbSpeed = Math.max(4, 15 - slope * 1.2);
+                let bestClimbGear = null;
+                const climbRing = isSingleChainring ? chainring.big : chainring.small;
+                for (let i = 0; i < cassetteCogs.length; i++) {
+                    const rpm = calculateCadence(estimatedClimbSpeed, climbRing, cassetteCogs[i]);
+                    if (rpm >= 60 || i === 0) { bestClimbGear = { front: climbRing, rear: cassetteCogs[i], rpm: Math.round(rpm), idx: i }; if (rpm >= 60) break; }
+                }
+                let descentTargetSpeed = 40 + slope * 1.5;
+                let bestDescentGear = null;
+                for (let i = cassetteCogs.length - 1; i >= 0; i--) {
+                    const rpm = calculateCadence(descentTargetSpeed, chainring.big, cassetteCogs[i]);
+                    if (rpm <= 110) { bestDescentGear = { front: chainring.big, rear: cassetteCogs[i], rpm: Math.round(rpm), idx: i }; break; }
+                }
+                return { estimatedClimbSpeed, bestClimbGear, climbPower: calculatePower(estimatedClimbSpeed, slope), descentTargetSpeed, bestDescentGear };
+            }, [chainring, cassetteCogs, isSingleChainring, slope, tireWidth, totalMass]);
+
+            // ── Render ──
+            return (
+                <div style={{ position: 'relative', zIndex: 1, minHeight: '100vh', paddingBottom: 48 }}>
+                    <div style={{ maxWidth: 1024, margin: '0 auto', padding: '40px 16px' }}>
+
+                        {/* Header */}
+                        <header style={{ textAlign: 'center', marginBottom: 40 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 8 }}>
+                                <div style={{ color: 'var(--accent)', filter: 'drop-shadow(0 0 8px var(--accent-glow))' }}><IconSettings size={28} /></div>
+                                <h1 style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-0.02em', margin: 0 }}>Gear Ratio Coach</h1>
+                                <button onClick={toggleTheme} style={{
+                                    position: 'absolute', right: 24, background: 'var(--input-bg)',
+                                    backdropFilter: 'blur(20px)', border: '1px solid var(--input-border)',
+                                    borderRadius: 12, padding: 8, cursor: 'pointer', color: 'var(--text-secondary)',
+                                    transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                }}>{isDark ? <IconSun /> : <IconMoon />}</button>
+                            </div>
+                            <p style={{ color: 'var(--text-secondary)', fontSize: 13, fontWeight: 500, margin: 0 }}>Vook One 2.0 Edition • 1x13 Drivetrain Ready</p>
+                        </header>
+
+                        {/* Settings Panel */}
+                        <div className="glass sticky-settings" style={{ borderRadius: 20, padding: 24, marginBottom: 32, position: 'sticky', top: 8, zIndex: 50 }}>
+                            {/* Row 1: Mode toggle + Weight */}
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 20, paddingBottom: 20, borderBottom: '1px solid var(--table-divider)', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <div style={{ display: 'flex', background: 'var(--input-bg)', padding: 4, borderRadius: 10, backdropFilter: 'blur(10px)', border: '1px solid var(--input-border)' }}>
+                                    <button className={`toggle-chip ${!isSingleChainring ? 'active' : 'inactive'}`} onClick={() => setIsSingleChainring(false)}>2x 双盘</button>
+                                    <button className={`toggle-chip ${isSingleChainring ? 'active' : 'inactive'}`} onClick={() => setIsSingleChainring(true)}>1x 单盘</button>
+                                </div>
+                                <div style={{ display: 'flex', gap: 16, alignItems: 'center', background: 'var(--input-bg)', padding: '8px 16px', borderRadius: 14, border: '1px solid var(--input-border)', backdropFilter: 'blur(10px)' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 500 }}>人(kg)</span>
+                                        <input type="number" value={riderWeight} onChange={e => setRiderWeight(Number(e.target.value))} style={{ width: 44 }} />
+                                    </div>
+                                    <div style={{ width: 1, height: 16, background: 'var(--table-divider)' }}></div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 500 }}>车(kg)</span>
+                                        <input type="number" value={bikeWeight} onChange={e => setBikeWeight(Number(e.target.value))} style={{ width: 40 }} />
+                                    </div>
+                                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-tertiary)' }}>= {riderWeight + bikeWeight} kg</span>
+                                </div>
+                            </div>
+
+                            {/* Row 2: Gear params */}
+                            <div className="settings-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 16, alignItems: 'end' }}>
+                                <div style={{ gridColumn: 'span 1' }}>
+                                    <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6, marginLeft: 4 }}>
+                                        牙盘 ({isSingleChainring ? '1x' : '2x'})
+                                    </label>
+                                    <select value={JSON.stringify(chainring)} onChange={e => setChainring(JSON.parse(e.target.value))}>
+                                        {(isSingleChainring ? presets.chainrings1x : presets.chainrings2x).map((c, i) => (
+                                            <option key={i} value={JSON.stringify(c)}>{isSingleChainring ? `${c.big}T` : `${c.big}/${c.small}T`} ({c.label.split(' ')[0]})</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6, marginLeft: 4 }}>速别</label>
+                                    <select value={cassetteSpeed} onChange={e => setCassetteSpeed(parseInt(e.target.value))}>
+                                        <option value={9}>9 Speed</option>
+                                        <option value={10}>10 Speed</option>
+                                        <option value={11}>11 Speed</option>
+                                        <option value={12}>12 Speed</option>
+                                        <option value={13}>13 Speed (Vook)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6, marginLeft: 4 }}>飞轮</label>
+                                    <select value={JSON.stringify(cassette)} onChange={e => setCassette(JSON.parse(e.target.value))}>
+                                        {presets.cassettes.map((c, i) => <option key={i} value={JSON.stringify(c)}>{c.min}-{c.max}T {c.label.includes('Vook') ? '(Vook)' : ''}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6, marginLeft: 4 }}>胎宽</label>
+                                    <select value={tireWidth} onChange={e => setTireWidth(parseInt(e.target.value))}>
+                                        {[23, 25, 28, 32, 35, 38, 40, 42].map(w => <option key={w} value={w}>{w}c {w === 28 ? '(Vook)' : ''}</option>)}
+                                    </select>
+                                </div>
+                                <div style={{ background: 'var(--input-bg)', padding: 12, borderRadius: 14, border: '1px solid var(--input-border)', backdropFilter: 'blur(10px)' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                        <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>设定坡度</label>
+                                        <span className="badge badge-blue" style={{ fontSize: 11 }}>{slope}%</span>
+                                    </div>
+                                    <input type="range" min="0" max="15" step="1" value={slope} onChange={e => setSlope(parseInt(e.target.value))} />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* ═══ Flat Road Guide ═══ */}
+                        <section style={{ marginBottom: 32 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, padding: '0 8px' }}>
+                                <div className="section-icon" style={{ background: 'linear-gradient(135deg, #007AFF, #5856D6)' }}><IconWind size={20} /></div>
+                                <h2 style={{ fontSize: 22, fontWeight: 800, margin: 0, letterSpacing: '-0.01em' }}>平路巡航 (0%)</h2>
+                            </div>
+                            <div className="glass" style={{ borderRadius: 20, overflow: 'hidden' }}>
+                                <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--table-divider)', display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-secondary)' }}>
+                                    <IconCheck size={16} /><span>目标踏频 <strong style={{ color: 'var(--text-primary)' }}>90 RPM</strong> • 功率基于 {totalMass}kg 总重估算</span>
+                                </div>
+                                <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                                    <table className="data-table">
+                                        <thead><tr><th>时速</th><th>功率</th><th>推荐牙盘</th><th>推荐飞轮</th><th>踏频</th></tr></thead>
+                                        <tbody>
+                                            {flatGuide.map((item, idx) => (
+                                                <tr key={idx}>
+                                                    <td><span style={{ fontWeight: 700, fontSize: 15 }}>{item.speed}</span> <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>km/h</span></td>
+                                                    <td><span className="badge badge-yellow"><IconLightning size={11} />{item.power}W</span></td>
+                                                    {item.front ? (<>
+                                                        <td><span className={`badge ${item.ring === '大盘' || item.ring === '单盘' ? 'badge-purple' : 'badge-blue'}`}>{item.ring} ({item.front}T)</span></td>
+                                                        <td><span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{item.rear}T</span> <span style={{ fontSize: 10, color: 'var(--text-tertiary)', marginLeft: 6 }}>#{item.idx + 1}</span></td>
+                                                        <td>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                                                <span style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: Math.abs(item.rpm - 90) > 10 ? 'var(--badge-orange-text)' : 'var(--badge-green-text)' }}>
+                                                                    {item.rpm} <span style={{ fontSize: 10, fontWeight: 400, color: 'var(--text-tertiary)' }}>rpm</span>
+                                                                </span>
+                                                                <div className="cadence-bar" style={{ width: 60 }}>
+                                                                    <div className="cadence-fill" style={{ width: `${Math.min(item.rpm || 0, 120) / 1.2}%`, background: Math.abs(item.rpm - 90) > 10 ? 'var(--badge-orange-text)' : 'var(--badge-green-text)' }}></div>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                    </>) : (<td colSpan="3" style={{ color: 'var(--text-tertiary)', fontStyle: 'italic', fontSize: 12 }}>无效档位</td>)}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* ═══ Climbing + Descent ═══ */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24 }}>
+                            {/* Climbing */}
+                            <section>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, padding: '0 8px' }}>
+                                    <div className="section-icon" style={{ background: 'linear-gradient(135deg, #FF9500, #FF3B30)' }}><IconMountain size={20} /></div>
+                                    <h2 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>爬坡 ({slope}%)</h2>
+                                </div>
+                                <div className="glass" style={{ borderRadius: 20, padding: 24, height: 'calc(100% - 56px)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                                    <div>
+                                        <div className="info-row">
+                                            <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>预估均速</span>
+                                            <span style={{ fontSize: 28, fontWeight: 800 }}>~{slopeGuide.estimatedClimbSpeed.toFixed(1)} <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-tertiary)' }}>km/h</span></span>
+                                        </div>
+                                        <div className="badge badge-yellow" style={{ width: '100%', justifyContent: 'space-between', padding: '12px 16px', borderRadius: 14, marginBottom: 20 }}>
+                                            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconLightning size={14} /> 所需功率</span>
+                                            <span style={{ fontSize: 22, fontWeight: 800, fontFamily: 'monospace' }}>{slopeGuide.climbPower}W</span>
+                                        </div>
+                                        <div style={{ background: 'var(--card-inner)', borderRadius: 16, padding: 20, border: '1px solid var(--table-divider)', marginBottom: 16 }}>
+                                            <h3 style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12, marginTop: 0 }}>推荐档位</h3>
+                                            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
+                                                <span style={{ fontSize: 28, fontWeight: 800, color: 'var(--accent)' }}>{slopeGuide.bestClimbGear?.front}T</span>
+                                                <span style={{ color: 'var(--text-tertiary)' }}>×</span>
+                                                <span style={{ fontSize: 28, fontWeight: 800 }}>{slopeGuide.bestClimbGear?.rear}T</span>
+                                            </div>
+                                            <div style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)' }}></div>
+                                                第 <strong>{slopeGuide.bestClimbGear?.idx + 1}</strong> 片 (最轻)
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className="info-row">
+                                            <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>预计踏频</span>
+                                            <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 18, color: slopeGuide.bestClimbGear?.rpm < 60 ? 'var(--badge-red-text)' : 'var(--badge-green-text)' }}>
+                                                {slopeGuide.bestClimbGear?.rpm} <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-tertiary)' }}>rpm</span>
+                                            </span>
+                                        </div>
+                                        {slopeGuide.bestClimbGear?.rpm < 60 && (
+                                            <div className="badge badge-red" style={{ width: '100%', padding: '10px 14px', borderRadius: 12, fontSize: 12, gap: 8 }}>
+                                                <IconAlert size={14} />
+                                                <span>踏频过低！膝盖压力极大。建议{isSingleChainring ? '更换更小的牙盘' : '更换更大的飞轮'}。</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </section>
+
+                            {/* Descent */}
+                            <section>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, padding: '0 8px' }}>
+                                    <div className="section-icon" style={{ background: 'linear-gradient(135deg, #34C759, #30B0C7)' }}><IconTrendingDown size={20} /></div>
+                                    <h2 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>放坡 (-{slope}%)</h2>
+                                </div>
+                                <div className="glass" style={{ borderRadius: 20, padding: 24, height: 'calc(100% - 56px)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                                    <div>
+                                        <div className="info-row">
+                                            <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>冲刺速度</span>
+                                            <span style={{ fontSize: 28, fontWeight: 800 }}>{slopeGuide.descentTargetSpeed.toFixed(0)} <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-tertiary)' }}>km/h+</span></span>
+                                        </div>
+                                        <div style={{ background: 'var(--card-inner)', borderRadius: 16, padding: 20, border: '1px solid var(--table-divider)', marginBottom: 16 }}>
+                                            <h3 style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12, marginTop: 0 }}>推荐档位</h3>
+                                            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
+                                                <span style={{ fontSize: 28, fontWeight: 800, color: 'var(--badge-purple-text)' }}>{slopeGuide.bestDescentGear?.front}T</span>
+                                                <span style={{ color: 'var(--text-tertiary)' }}>×</span>
+                                                <span style={{ fontSize: 28, fontWeight: 800 }}>{slopeGuide.bestDescentGear?.rear}T</span>
+                                            </div>
+                                            <div style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--badge-purple-text)' }}></div>
+                                                第 <strong>{slopeGuide.bestDescentGear?.idx + 1}</strong> 片 (最重)
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className="info-row">
+                                            <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>预计踏频</span>
+                                            <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 18, color: slopeGuide.bestDescentGear?.rpm > 110 ? 'var(--badge-orange-text)' : 'var(--text-primary)' }}>
+                                                {slopeGuide.bestDescentGear?.rpm} <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-tertiary)' }}>rpm</span>
+                                            </span>
+                                        </div>
+                                        {slopeGuide.bestDescentGear?.rpm > 110 && (
+                                            <div className="badge badge-yellow" style={{ width: '100%', padding: '10px 14px', borderRadius: 12, fontSize: 12, gap: 8 }}>
+                                                <IconAlert size={14} />
+                                                <span>注意：如果这已经是最大档位，您将踩空 (Spin out)。</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </section>
+                        </div>
+
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('SW registered:', reg.scope))
+                    .catch(err => console.log('SW registration failed:', err));
+            });
+        }
+    </script>
+</body>
+
+</html>
