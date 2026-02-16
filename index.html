@@ -520,7 +520,7 @@
                     { label: '54T (顶级冲刺)', small: 0, big: 54 },
                 ],
                 cassettes: [
-                    { label: '11-45T (Vook 13s)', min: 11, max: 45 },
+                    { label: '11-45T (Vook 13s)', min: 11, max: 45, cogs: [11, 12, 13, 15, 17, 19, 21, 23, 25, 28, 33, 39, 45] },
                     { label: '11-28T (平路)', min: 11, max: 28 },
                     { label: '11-30T (综合)', min: 11, max: 30 },
                     { label: '11-32T (爬坡)', min: 11, max: 32 },
@@ -551,12 +551,13 @@
             }, [isSingleChainring]);
 
             // ── Core Calculations ──
-            const generateCassetteCogs = (min, max, count) => {
+            const generateCassetteCogs = (cConfig, count) => {
+                if (cConfig.cogs) return cConfig.cogs;
                 let cogs = [];
-                for (let i = 0; i < count; i++) { cogs.push(Math.round(min + (max - min) * (i / (count - 1)))); }
-                return [...new Set(cogs)].sort((a, b) => b - a);
+                for (let i = 0; i < count; i++) { cogs.push(Math.round(cConfig.min + (cConfig.max - cConfig.min) * (i / (count - 1)))); }
+                return [...new Set(cogs)].sort((a, b) => b - a).slice(0, count); // Ensure count matches if deduplication occurred (rough approximation for generated)
             };
-            const cassetteCogs = useMemo(() => generateCassetteCogs(cassette.min, cassette.max, cassetteSpeed), [cassette, cassetteSpeed]);
+            const cassetteCogs = useMemo(() => generateCassetteCogs(cassette, cassetteSpeed), [cassette, cassetteSpeed]);
             const wheelCircumferenceMeters = (622 + 2 * tireWidth) * Math.PI / 1000;
             const totalMass = riderWeight + bikeWeight;
 
