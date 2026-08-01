@@ -694,31 +694,49 @@
 
             const flatGuide = useMemo(() => {
                 const speeds = [10, 13, 15, 18, 20, 23, 25, 28, 30, 33, 35, 38, 40, 43, 45, 48, 50];
-                return speeds.map(targetSpeed => {
-                    let bestOption = null, minScore = 1000;
+
+                // Phase 1: best cog per ring per speed
+                const allOptions = speeds.map(targetSpeed => {
                     const findBest = (ringSize, ringName) => {
+                        let best = null, bestScore = 1e6;
                         cassetteCogs.forEach((cog, idx) => {
                             const status = getChainStatus(idx, cassetteCogs.length, ringName === '大盘');
                             if (status.status === 'bad') return;
                             const rpm = calculateCadence(targetSpeed, ringSize, cog);
                             if (rpm < 55 || rpm > 115) return;
-                            // Score: optimal cadence 85-95 RPM, penalty outside
                             let score;
                             if (rpm >= 85 && rpm <= 95) score = Math.abs(rpm - 90) * 0.5;
                             else if (rpm >= 75 && rpm <= 105) score = Math.abs(rpm - 90);
                             else score = Math.abs(rpm - 90) * 2;
-                            if (!isSingleChainring) {
-                                if (ringName === '大盘' && targetSpeed < 25) score += 15;
-                                if (ringName === '小盘' && targetSpeed > 28) score += 15;
-                            }
-                            if (score < minScore) { minScore = score; bestOption = { ring: ringName, front: ringSize, rear: cog, rpm: Math.round(rpm), idx }; }
+                            if (score < bestScore) { bestScore = score; best = { ring: ringName, front: ringSize, rear: cog, rpm: Math.round(rpm), idx, score }; }
                         });
+                        return best;
                     };
-                    if (isSingleChainring) { findBest(chainring.big, '单盘'); } else { findBest(chainring.small, '小盘'); findBest(chainring.big, '大盘'); }
-                                        // Chain penalty: severe cross-chain loses ~2% efficiency
-                    const chainEff = bestOption && bestOption.ring === '小盘' && bestOption.idx >= cassetteCogs.length - 2 ? 0.98
-                        : bestOption && bestOption.ring === '大盘' && bestOption.idx < 2 ? 0.98 : 1.0;
-                    return { speed: targetSpeed, power: calculatePower(targetSpeed, 0, chainEff), ...bestOption };
+                    const small = isSingleChainring ? null : findBest(chainring.small, '小盘');
+                    const big = findBest(isSingleChainring ? chainring.big : chainring.big, isSingleChainring ? '单盘' : '大盘');
+                    return { speed: targetSpeed, small, big };
+                });
+
+                // Phase 2: sequential chainring — monotonic (small→big only, never back)
+                let useBigRing = false;
+                return allOptions.map(({ speed, small, big }) => {
+                    if (isSingleChainring) {
+                        const chainEff = big && big.idx < 2 ? 0.98 : 1.0;
+                        return { speed, power: calculatePower(speed, 0, chainEff), ...big };
+                    }
+
+                    if (!useBigRing && small) {
+                        const smallRunningOut = small.idx <= 3;
+                        const bigValid = big && big.idx >= 2 && big.rpm >= 75;
+                        if (smallRunningOut && bigValid) useBigRing = true;
+                    }
+
+                    if (useBigRing && big && big.idx >= 2) {
+                        const chainEff = big.idx < 2 ? 0.98 : 1.0;
+                        return { speed, power: calculatePower(speed, 0, chainEff), ...big };
+                    }
+                    const chainEff = small && small.idx >= cassetteCogs.length - 2 ? 0.98 : 1.0;
+                    return { speed, power: calculatePower(speed, 0, chainEff), ...small };
                 });
             }, [chainring, cassetteCogs, isSingleChainring, tireWidth, totalMass]);
 
