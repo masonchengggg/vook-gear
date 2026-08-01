@@ -689,7 +689,7 @@
                                     ) : (
                                         <select value={JSON.stringify(chainring)} onChange={e => setChainring(JSON.parse(e.target.value))}>
                                             {presets.chainrings2x.map((c, i) => (
-                                                <option key={i} value={JSON.stringify(c)}>{c.label}</option>
+                                                <option key={i} value={JSON.stringify(c)}>{c.big}/{c.small}T ({c.label.split(' ')[0]})</option>
                                             ))}
                                         </select>
                                     )}
@@ -707,7 +707,7 @@
                                 <div>
                                     <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6, marginLeft: 4 }}>飞轮</label>
                                     <select value={JSON.stringify(cassette)} onChange={e => setCassette(JSON.parse(e.target.value))}>
-                                        {presets.cassettes.map((c, i) => <option key={i} value={JSON.stringify(c)}>{c.label}</option>)}
+                                        {presets.cassettes.map((c, i) => <option key={i} value={JSON.stringify(c)}>{c.min}-{c.max}T</option>)}
                                     </select>
                                 </div>
                                 <div>
