@@ -695,48 +695,70 @@
             const flatGuide = useMemo(() => {
                 const speeds = [10, 13, 15, 18, 20, 23, 25, 28, 30, 33, 35, 38, 40, 43, 45, 48, 50];
 
-                // Phase 1: best cog per ring per speed
-                const allOptions = speeds.map(targetSpeed => {
-                    const findBest = (ringSize, ringName) => {
-                        let best = null, bestScore = 1e6;
-                        cassetteCogs.forEach((cog, idx) => {
+                const bestOnRing = (targetSpeed, ringSize, ringName, avoidCross = true) => {
+                    let best = null, bestScore = 1e6;
+                    cassetteCogs.forEach((cog, idx) => {
+                        if (avoidCross) {
                             const status = getChainStatus(idx, cassetteCogs.length, ringName === '大盘');
                             if (status.status === 'bad') return;
-                            const rpm = calculateCadence(targetSpeed, ringSize, cog);
-                            if (rpm < 55 || rpm > 115) return;
-                            let score;
-                            if (rpm >= 85 && rpm <= 95) score = Math.abs(rpm - 90) * 0.5;
-                            else if (rpm >= 75 && rpm <= 105) score = Math.abs(rpm - 90);
-                            else score = Math.abs(rpm - 90) * 2;
-                            if (score < bestScore) { bestScore = score; best = { ring: ringName, front: ringSize, rear: cog, rpm: Math.round(rpm), idx, score }; }
-                        });
-                        return best;
-                    };
-                    const small = isSingleChainring ? null : findBest(chainring.small, '小盘');
-                    const big = findBest(isSingleChainring ? chainring.big : chainring.big, isSingleChainring ? '单盘' : '大盘');
-                    return { speed: targetSpeed, small, big };
-                });
+                        }
+                        const rpm = calculateCadence(targetSpeed, ringSize, cog);
+                        if (rpm < 55 || rpm > 115) return;
+                        let score;
+                        if (rpm >= 85 && rpm <= 95) score = Math.abs(rpm - 90) * 0.5;
+                        else if (rpm >= 75 && rpm <= 105) score = Math.abs(rpm - 90);
+                        else score = Math.abs(rpm - 90) * 2;
+                        if (score < bestScore) { bestScore = score; best = { ring: ringName, front: ringSize, rear: cog, rpm: Math.round(rpm), idx }; }
+                    });
+                    return best;
+                };
 
-                // Phase 2: sequential chainring — monotonic (small→big only, never back)
-                let useBigRing = false;
-                return allOptions.map(({ speed, small, big }) => {
-                    if (isSingleChainring) {
-                        const chainEff = big && big.idx < 2 ? 0.98 : 1.0;
-                        return { speed, power: calculatePower(speed, 0, chainEff), ...big };
-                    }
+                if (isSingleChainring) {
+                    return speeds.map(ts => {
+                        const best = bestOnRing(ts, chainring.big, '单盘', false);
+                        const chainEff = best && best.idx < 2 ? 0.98 : 1.0;
+                        return { speed: ts, power: calculatePower(ts, 0, chainEff), ...best };
+                    });
+                }
 
-                    if (!useBigRing && small) {
-                        const smallRunningOut = small.idx <= 3;
-                        const bigValid = big && big.idx >= 2 && big.rpm >= 75;
-                        if (smallRunningOut && bigValid) useBigRing = true;
-                    }
+                // ── Shimano Di2 Synchro Shift ──
+                const SYNCHRO_GATE = 4;
 
-                    if (useBigRing && big && big.idx >= 2) {
-                        const chainEff = big.idx < 2 ? 0.98 : 1.0;
-                        return { speed, power: calculatePower(speed, 0, chainEff), ...big };
+                // Phase 1: small ring sequence
+                const smallSeq = speeds.map(ts => bestOnRing(ts, chainring.small, '小盘'));
+
+                // Phase 2: find shift point (small ring crosses gate)
+                let shiftIdx = -1;
+                for (let i = 0; i < smallSeq.length; i++) {
+                    if (smallSeq[i] && smallSeq[i].idx <= SYNCHRO_GATE) { shiftIdx = i; break; }
+                }
+
+                // Phase 3: Di2 ratio-compensation at shift point
+                let compensateIdx = -1;
+                if (shiftIdx >= 0 && smallSeq[shiftIdx]) {
+                    const smallRatio = chainring.small / smallSeq[shiftIdx].rear;
+                    let minDiff = Infinity;
+                    for (let i = 2; i < cassetteCogs.length - 1; i++) {
+                        const bigRatio = chainring.big / cassetteCogs[i];
+                        const diff = Math.abs(bigRatio - smallRatio);
+                        if (diff < minDiff) { minDiff = diff; compensateIdx = i; }
                     }
-                    const chainEff = small && small.idx >= cassetteCogs.length - 2 ? 0.98 : 1.0;
-                    return { speed, power: calculatePower(speed, 0, chainEff), ...small };
+                }
+
+                // Phase 4: build final Di2 sequence
+                return speeds.map((ts, i) => {
+                    if (i < shiftIdx || shiftIdx < 0) {
+                        const s = smallSeq[i];
+                        const chainEff = s && s.idx >= cassetteCogs.length - 2 ? 0.98 : 1.0;
+                        return { speed: ts, power: calculatePower(ts, 0, chainEff), ...s };
+                    }
+                    if (i === shiftIdx) {
+                        const compRpm = calculateCadence(ts, chainring.big, cassetteCogs[compensateIdx]);
+                        return { speed: ts, power: calculatePower(ts, 0, 1.0), ring: '大盘', front: chainring.big, rear: cassetteCogs[compensateIdx], rpm: Math.round(compRpm), idx: compensateIdx };
+                    }
+                    const b = bestOnRing(ts, chainring.big, '大盘');
+                    const chainEff = b && b.idx < 2 ? 0.98 : 1.0;
+                    return { speed: ts, power: calculatePower(ts, 0, chainEff), ...b };
                 });
             }, [chainring, cassetteCogs, isSingleChainring, tireWidth, totalMass]);
 
