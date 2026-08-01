@@ -460,6 +460,105 @@
                 top: auto !important;
             }
         }
+
+        /* ── Layout: Sidebar + Main ── */
+        .app-layout {
+            display: flex;
+            gap: 24px;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px 16px 60px;
+            min-height: calc(100vh - 60px);
+        }
+        .sidebar {
+            width: 270px;
+            flex-shrink: 0;
+        }
+        .sidebar-inner {
+            position: sticky;
+            top: 16px;
+        }
+        .main-area {
+            flex: 1;
+            min-width: 0;
+        }
+        .sidebar-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--table-divider);
+        }
+        .sidebar-header h3 {
+            font-size: 14px;
+            font-weight: 800;
+            margin: 0;
+            letter-spacing: -0.01em;
+        }
+        .ctrl-group {
+            margin-bottom: 18px;
+        }
+        .ctrl-label {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 6px;
+            display: block;
+        }
+        .ctrl-group select {
+            width: 100%;
+        }
+        .ctrl-group input[type=number] {
+            width: 52px;
+        }
+        .sidebar-toggle {
+            display: none;
+            width: 100%;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            border: 1px solid var(--input-border);
+            background: var(--input-bg);
+            color: var(--text-primary);
+            backdrop-filter: blur(20px);
+        }
+
+        @media (max-width: 768px) {
+            .app-layout {
+                flex-direction: column;
+                gap: 16px;
+                padding: 16px 12px 40px;
+            }
+            .sidebar {
+                width: 100%;
+            }
+            .sidebar-inner {
+                position: static;
+            }
+            .sidebar-toggle {
+                display: flex;
+                margin-bottom: 0;
+            }
+            .sidebar-body {
+                display: none;
+                margin-top: 16px;
+            }
+            .sidebar.expanded .sidebar-body {
+                display: block;
+            }
+            .sidebar.expanded .sidebar-toggle {
+                margin-bottom: 0;
+                border-radius: 14px 14px 0 0;
+            }
+        }
+
     </style>
 </head>
 
@@ -573,10 +672,17 @@
                 return { status: 'ok', msg: '' };
             };
 
-            const calculatePower = (speedKmH, slopePercent) => {
+            const calculatePower = (speedKmH, slopePercent, chainPenalty = 1.0) => {
                 const v = speedKmH / 3.6, grade = slopePercent / 100, angle = Math.atan(grade), g = 9.81;
-                const crr = 0.005 + (tireWidth > 32 ? 0.002 : 0);
-                const pTotal = (totalMass * g * Math.sin(angle) * v + totalMass * g * Math.cos(angle) * crr * v + 0.5 * 0.35 * 1.225 * Math.pow(v, 3)) / 0.97;
+                // Modern Crr: wider tires at optimal pressure = lower Crr (BicycleRollingResistance data)
+                let crr;
+                if (tireWidth <= 25) crr = 0.0048;
+                else if (tireWidth <= 28) crr = 0.0045;
+                else if (tireWidth === 30) crr = 0.0040;
+                else crr = 0.0037;
+                // Drivetrain efficiency: 97% baseline, penalty for cross-chaining
+                const drivetrainEff = 0.97 * chainPenalty;
+                const pTotal = (totalMass * g * Math.sin(angle) * v + totalMass * g * Math.cos(angle) * crr * v + 0.5 * 0.35 * 1.225 * Math.pow(v, 3)) / drivetrainEff;
                 return Math.max(0, Math.round(pTotal));
             };
 
@@ -596,7 +702,11 @@
                             if (status.status === 'bad') return;
                             const rpm = calculateCadence(targetSpeed, ringSize, cog);
                             if (rpm < 55 || rpm > 115) return;
-                            let score = Math.abs(rpm - 90);
+                            // Score: optimal cadence 85-95 RPM, penalty outside
+                            let score;
+                            if (rpm >= 85 && rpm <= 95) score = Math.abs(rpm - 90) * 0.5;
+                            else if (rpm >= 75 && rpm <= 105) score = Math.abs(rpm - 90);
+                            else score = Math.abs(rpm - 90) * 2;
                             if (!isSingleChainring) {
                                 if (ringName === '大盘' && targetSpeed < 25) score += 15;
                                 if (ringName === '小盘' && targetSpeed > 28) score += 15;
@@ -605,7 +715,10 @@
                         });
                     };
                     if (isSingleChainring) { findBest(chainring.big, '单盘'); } else { findBest(chainring.small, '小盘'); findBest(chainring.big, '大盘'); }
-                    return { speed: targetSpeed, power: calculatePower(targetSpeed, 0), ...bestOption };
+                                        // Chain penalty: severe cross-chain loses ~2% efficiency
+                    const chainEff = bestOption && bestOption.ring === '小盘' && bestOption.idx >= cassetteCogs.length - 2 ? 0.98
+                        : bestOption && bestOption.ring === '大盘' && bestOption.idx < 2 ? 0.98 : 1.0;
+                    return { speed: targetSpeed, power: calculatePower(targetSpeed, 0, chainEff), ...bestOption };
                 });
             }, [chainring, cassetteCogs, isSingleChainring, tireWidth, totalMass]);
 
@@ -623,240 +736,286 @@
                     const rpm = calculateCadence(descentTargetSpeed, chainring.big, cassetteCogs[i]);
                     if (rpm <= 110) { bestDescentGear = { front: chainring.big, rear: cassetteCogs[i], rpm: Math.round(rpm), idx: i }; break; }
                 }
-                return { estimatedClimbSpeed, bestClimbGear, climbPower: calculatePower(estimatedClimbSpeed, slope), descentTargetSpeed, bestDescentGear };
+                return { estimatedClimbSpeed, bestClimbGear, climbPower: calculatePower(estimatedClimbSpeed, slope, 1.0), descentTargetSpeed, bestDescentGear };
             }, [chainring, cassetteCogs, isSingleChainring, slope, tireWidth, totalMass]);
 
             // ── Render ──
+            const [sidebarExpanded, setSidebarExpanded] = React.useState(false);
+
+            // Preset chips for 1x mode
+            const presetTeeth = [32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54];
+
             return (
-                <div style={{ position: 'relative', zIndex: 1, minHeight: '100vh', paddingBottom: 48 }}>
-                    <div style={{ maxWidth: 1024, margin: '0 auto', padding: '40px 16px' }}>
+                <div style={{ position: 'relative', zIndex: 1, minHeight: '100vh' }}>
 
-                        {/* Header */}
-                        <header style={{ textAlign: 'center', marginBottom: 40 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 8 }}>
-                                <div style={{ color: 'var(--accent)', filter: 'drop-shadow(0 0 8px var(--accent-glow))' }}><IconSettings size={28} /></div>
-                                <h1 style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-0.02em', margin: 0 }}>Gear Ratio Coach</h1>
-                                <button onClick={toggleTheme} style={{
-                                    position: 'absolute', right: 24, background: 'var(--input-bg)',
-                                    backdropFilter: 'blur(20px)', border: '1px solid var(--input-border)',
-                                    borderRadius: 12, padding: 8, cursor: 'pointer', color: 'var(--text-secondary)',
-                                    transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                }}>{isDark ? <IconSun /> : <IconMoon />}</button>
-                            </div>
-                            <p style={{ color: 'var(--text-secondary)', fontSize: 13, fontWeight: 500, margin: 0 }}>Shimano 7120 Edition • 2x12 Drivetrain</p>
-                        </header>
+                    {/* Header */}
+                    <header style={{ textAlign: 'center', padding: '28px 16px 0' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 4 }}>
+                            <div style={{ color: 'var(--accent)', filter: 'drop-shadow(0 0 8px var(--accent-glow))' }}><IconSettings size={28} /></div>
+                            <h1 style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-0.02em', margin: 0 }}>Gear Ratio Coach</h1>
+                            <button onClick={toggleTheme} style={{
+                                position: 'absolute', right: 24, background: 'var(--input-bg)',
+                                backdropFilter: 'blur(20px)', border: '1px solid var(--input-border)',
+                                borderRadius: 12, padding: 8, cursor: 'pointer', color: 'var(--text-secondary)',
+                                transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                            }}>{isDark ? <IconSun /> : <IconMoon />}</button>
+                        </div>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: 13, fontWeight: 500, margin: 0 }}>Shimano 7120 Edition · 2x12 Drivetrain</p>
+                    </header>
 
-                        {/* Settings Panel */}
-                        <div className="glass sticky-settings" style={{ borderRadius: 20, padding: 24, marginBottom: 32 }}>
-                            {/* Row 1: Mode toggle + Weight */}
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 20, paddingBottom: 20, borderBottom: '1px solid var(--table-divider)', alignItems: 'center', justifyContent: 'space-between' }}>
-                                <div style={{ display: 'flex', background: 'var(--input-bg)', padding: 4, borderRadius: 10, backdropFilter: 'blur(10px)', border: '1px solid var(--input-border)' }}>
-                                    <button className={`toggle-chip ${!isSingleChainring ? 'active' : 'inactive'}`} onClick={() => setIsSingleChainring(false)}>2x 双盘</button>
-                                    <button className={`toggle-chip ${isSingleChainring ? 'active' : 'inactive'}`} onClick={() => setIsSingleChainring(true)}>1x 单盘</button>
-                                </div>
-                                <div style={{ display: 'flex', gap: 16, alignItems: 'center', background: 'var(--input-bg)', padding: '8px 16px', borderRadius: 14, border: '1px solid var(--input-border)', backdropFilter: 'blur(10px)' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                        <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 500 }}>人(kg)</span>
-                                        <input type="number" value={riderWeight} onChange={e => setRiderWeight(Number(e.target.value))} style={{ width: 44 }} />
-                                    </div>
-                                    <div style={{ width: 1, height: 16, background: 'var(--table-divider)' }}></div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                        <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 500 }}>车(kg)</span>
-                                        <input type="number" value={bikeWeight} onChange={e => setBikeWeight(Number(e.target.value))} style={{ width: 40 }} />
-                                    </div>
-                                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-tertiary)' }}>= {riderWeight + bikeWeight} kg</span>
-                                </div>
-                            </div>
+                    {/* Layout: Sidebar + Main */}
+                    <div className="app-layout">
+                        {/* Sidebar */}
+                        <aside className={'sidebar' + (sidebarExpanded ? ' expanded' : '')}>
+                            {/* Mobile toggle */}
+                            <button className="sidebar-toggle glass" onClick={() => setSidebarExpanded(!sidebarExpanded)}>
+                                <span>⚙️ 参数设置</span>
+                                <span style={{ fontSize: 16 }}>{sidebarExpanded ? '▴' : '▾'}</span>
+                            </button>
 
-                            {/* Row 2: Gear params */}
-                            <div className="settings-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 16, alignItems: 'end' }}>
-                                <div style={{ gridColumn: 'span 1' }}>
-                                    <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6, marginLeft: 4 }}>
-                                        牙盘 ({isSingleChainring ? '1x' : '2x'})
-                                    </label>
-                                    {isSingleChainring ? (
-                                        <div>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--input-bg)', backdropFilter: 'blur(20px) saturate(160%)', border: '1px solid var(--input-border)', borderRadius: 12, padding: '6px 14px', boxShadow: 'var(--input-shadow)', transition: 'all 0.2s ease' }}>
-                                                <input type="number" value={chainring.big} min={24} max={60}
-                                                    onChange={e => { const v = Math.max(24, Math.min(60, parseInt(e.target.value) || 24)); setChainring({ label: v + 'T 自定义', small: 0, big: v }); }}
-                                                    style={{ width: 40, border: 'none', background: 'transparent', fontSize: 15, fontWeight: 700, textAlign: 'center', padding: '6px 0', color: 'var(--text-primary)', outline: 'none' }} />
-                                                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>T</span>
-                                            </div>
-                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8 }}>
-                                                <span key={32} onClick={() => setChainring({ label: '32T (自定义)', small: 0, big: 32 })} style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: chainring.big === 32 ? 'var(--accent)' : 'var(--input-bg)', color: chainring.big === 32 ? 'white' : 'var(--text-secondary)', border: chainring.big === 32 ? '1px solid transparent' : '1px solid var(--input-border)', transition: 'all 0.15s ease', whiteSpace: 'nowrap' }}>32</span><span key={34} onClick={() => setChainring({ label: '34T (自定义)', small: 0, big: 34 })} style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: chainring.big === 34 ? 'var(--accent)' : 'var(--input-bg)', color: chainring.big === 34 ? 'white' : 'var(--text-secondary)', border: chainring.big === 34 ? '1px solid transparent' : '1px solid var(--input-border)', transition: 'all 0.15s ease', whiteSpace: 'nowrap' }}>34</span><span key={36} onClick={() => setChainring({ label: '36T (自定义)', small: 0, big: 36 })} style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: chainring.big === 36 ? 'var(--accent)' : 'var(--input-bg)', color: chainring.big === 36 ? 'white' : 'var(--text-secondary)', border: chainring.big === 36 ? '1px solid transparent' : '1px solid var(--input-border)', transition: 'all 0.15s ease', whiteSpace: 'nowrap' }}>36</span><span key={38} onClick={() => setChainring({ label: '38T (自定义)', small: 0, big: 38 })} style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: chainring.big === 38 ? 'var(--accent)' : 'var(--input-bg)', color: chainring.big === 38 ? 'white' : 'var(--text-secondary)', border: chainring.big === 38 ? '1px solid transparent' : '1px solid var(--input-border)', transition: 'all 0.15s ease', whiteSpace: 'nowrap' }}>38</span><span key={40} onClick={() => setChainring({ label: '40T (自定义)', small: 0, big: 40 })} style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: chainring.big === 40 ? 'var(--accent)' : 'var(--input-bg)', color: chainring.big === 40 ? 'white' : 'var(--text-secondary)', border: chainring.big === 40 ? '1px solid transparent' : '1px solid var(--input-border)', transition: 'all 0.15s ease', whiteSpace: 'nowrap' }}>40</span><span key={42} onClick={() => setChainring({ label: '42T (自定义)', small: 0, big: 42 })} style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: chainring.big === 42 ? 'var(--accent)' : 'var(--input-bg)', color: chainring.big === 42 ? 'white' : 'var(--text-secondary)', border: chainring.big === 42 ? '1px solid transparent' : '1px solid var(--input-border)', transition: 'all 0.15s ease', whiteSpace: 'nowrap' }}>42</span><span key={44} onClick={() => setChainring({ label: '44T (自定义)', small: 0, big: 44 })} style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: chainring.big === 44 ? 'var(--accent)' : 'var(--input-bg)', color: chainring.big === 44 ? 'white' : 'var(--text-secondary)', border: chainring.big === 44 ? '1px solid transparent' : '1px solid var(--input-border)', transition: 'all 0.15s ease', whiteSpace: 'nowrap' }}>44</span><span key={46} onClick={() => setChainring({ label: '46T (自定义)', small: 0, big: 46 })} style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: chainring.big === 46 ? 'var(--accent)' : 'var(--input-bg)', color: chainring.big === 46 ? 'white' : 'var(--text-secondary)', border: chainring.big === 46 ? '1px solid transparent' : '1px solid var(--input-border)', transition: 'all 0.15s ease', whiteSpace: 'nowrap' }}>46</span><span key={48} onClick={() => setChainring({ label: '48T (自定义)', small: 0, big: 48 })} style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: chainring.big === 48 ? 'var(--accent)' : 'var(--input-bg)', color: chainring.big === 48 ? 'white' : 'var(--text-secondary)', border: chainring.big === 48 ? '1px solid transparent' : '1px solid var(--input-border)', transition: 'all 0.15s ease', whiteSpace: 'nowrap' }}>48</span><span key={50} onClick={() => setChainring({ label: '50T (自定义)', small: 0, big: 50 })} style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: chainring.big === 50 ? 'var(--accent)' : 'var(--input-bg)', color: chainring.big === 50 ? 'white' : 'var(--text-secondary)', border: chainring.big === 50 ? '1px solid transparent' : '1px solid var(--input-border)', transition: 'all 0.15s ease', whiteSpace: 'nowrap' }}>50</span><span key={52} onClick={() => setChainring({ label: '52T (自定义)', small: 0, big: 52 })} style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: chainring.big === 52 ? 'var(--accent)' : 'var(--input-bg)', color: chainring.big === 52 ? 'white' : 'var(--text-secondary)', border: chainring.big === 52 ? '1px solid transparent' : '1px solid var(--input-border)', transition: 'all 0.15s ease', whiteSpace: 'nowrap' }}>52</span><span key={54} onClick={() => setChainring({ label: '54T (自定义)', small: 0, big: 54 })} style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: chainring.big === 54 ? 'var(--accent)' : 'var(--input-bg)', color: chainring.big === 54 ? 'white' : 'var(--text-secondary)', border: chainring.big === 54 ? '1px solid transparent' : '1px solid var(--input-border)', transition: 'all 0.15s ease', whiteSpace: 'nowrap' }}>54</span>
-                                            </div>
+                            <div className="sidebar-body">
+                                <div className="glass sidebar-inner" style={{ borderRadius: 20, padding: 20 }}>
+                                    {/* Mode toggle */}
+                                    <div className="ctrl-group">
+                                        <span className="ctrl-label">传动模式</span>
+                                        <div style={{ display: 'flex', background: 'var(--input-bg)', padding: 3, borderRadius: 10, backdropFilter: 'blur(10px)', border: '1px solid var(--input-border)' }}>
+                                            <button className={`toggle-chip ${!isSingleChainring ? 'active' : 'inactive'}`} style={{ flex: 1 }} onClick={() => setIsSingleChainring(false)}>2x 双盘</button>
+                                            <button className={`toggle-chip ${isSingleChainring ? 'active' : 'inactive'}`} style={{ flex: 1 }} onClick={() => setIsSingleChainring(true)}>1x 单盘</button>
                                         </div>
-                                    ) : (
-                                        <select value={JSON.stringify(chainring)} onChange={e => setChainring(JSON.parse(e.target.value))}>
-                                            {presets.chainrings2x.map((c, i) => (
-                                                <option key={i} value={JSON.stringify(c)}>{c.big}/{c.small}T ({c.label.split(' ')[0]})</option>
-                                            ))}
+                                    </div>
+
+                                    {/* Chainring */}
+                                    <div className="ctrl-group">
+                                        <span className="ctrl-label">牙盘</span>
+                                        {isSingleChainring ? (
+                                            <div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--input-bg)', backdropFilter: 'blur(20px) saturate(160%)', border: '1px solid var(--input-border)', borderRadius: 12, padding: '6px 14px', boxShadow: 'var(--input-shadow)' }}>
+                                                    <input type="number" value={chainring.big} min={24} max={60}
+                                                        onChange={e => { const v = Math.max(24, Math.min(60, parseInt(e.target.value) || 24)); setChainring({ label: v + 'T 自定义', small: 0, big: v }); }}
+                                                        style={{ width: 40, border: 'none', background: 'transparent', fontSize: 15, fontWeight: 700, textAlign: 'center', padding: '6px 0', color: 'var(--text-primary)', outline: 'none' }} />
+                                                    <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>T</span>
+                                                </div>
+                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8 }}>
+                                                    {presetTeeth.map(t => (
+                                                        <span key={t} onClick={() => setChainring({ label: t + 'T (自定义)', small: 0, big: t })}
+                                                            style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                                                                background: chainring.big === t ? 'var(--accent)' : 'var(--input-bg)',
+                                                                color: chainring.big === t ? 'white' : 'var(--text-secondary)',
+                                                                border: chainring.big === t ? '1px solid transparent' : '1px solid var(--input-border)',
+                                                                transition: 'all 0.15s ease', whiteSpace: 'nowrap' }}>{t}</span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <select value={JSON.stringify(chainring)} onChange={e => setChainring(JSON.parse(e.target.value))}>
+                                                {presets.chainrings2x.map((c, i) => (
+                                                    <option key={i} value={JSON.stringify(c)}>{c.big}/{c.small}T ({c.label.split(' ')[0]})</option>
+                                                ))}
+                                            </select>
+                                        )}
+                                    </div>
+
+                                    {/* Speed count */}
+                                    <div className="ctrl-group">
+                                        <span className="ctrl-label">速别</span>
+                                        <select value={cassetteSpeed} onChange={e => setCassetteSpeed(parseInt(e.target.value))}>
+                                            <option value={9}>9 Speed</option>
+                                            <option value={10}>10 Speed</option>
+                                            <option value={11}>11 Speed</option>
+                                            <option value={12}>12 Speed</option>
+                                            <option value={13}>13 Speed</option>
                                         </select>
-                                    )}
-                                </div>
-                                <div>
-                                    <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6, marginLeft: 4 }}>速别</label>
-                                    <select value={cassetteSpeed} onChange={e => setCassetteSpeed(parseInt(e.target.value))}>
-                                        <option value={9}>9 Speed</option>
-                                        <option value={10}>10 Speed</option>
-                                        <option value={11}>11 Speed</option>
-                                        <option value={12}>12 Speed</option>
-                                        <option value={13}>13 Speed</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6, marginLeft: 4 }}>飞轮</label>
-                                    <select value={JSON.stringify(cassette)} onChange={e => setCassette(JSON.parse(e.target.value))}>
-                                        {presets.cassettes.map((c, i) => <option key={i} value={JSON.stringify(c)}>{c.min}-{c.max}T</option>)}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6, marginLeft: 4 }}>胎宽</label>
-                                    <select value={tireWidth} onChange={e => setTireWidth(parseInt(e.target.value))}>
-                                        {[23, 25, 28, 30, 32, 35, 38, 40, 42].map(w => <option key={w} value={w}>{w}c {w === 30 ? '(默认)' : ''}</option>)}
-                                    </select>
-                                </div>
-                                <div style={{ background: 'var(--input-bg)', padding: 12, borderRadius: 14, border: '1px solid var(--input-border)', backdropFilter: 'blur(10px)' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                                        <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>设定坡度</label>
-                                        <span className="badge badge-blue" style={{ fontSize: 11 }}>{slope}%</span>
                                     </div>
-                                    <input type="range" min="0" max="15" step="1" value={slope} onChange={e => setSlope(parseInt(e.target.value))} />
-                                </div>
-                            </div>
-                        </div>
 
-                        {/* ═══ Flat Road Guide ═══ */}
-                        <section style={{ marginBottom: 32 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, padding: '0 8px' }}>
-                                <div className="section-icon" style={{ background: 'linear-gradient(135deg, #007AFF, #5856D6)' }}><IconWind size={20} /></div>
-                                <h2 style={{ fontSize: 22, fontWeight: 800, margin: 0, letterSpacing: '-0.01em' }}>平路巡航 (0%)</h2>
-                            </div>
-                            <div className="glass" style={{ borderRadius: 20, overflow: 'hidden' }}>
-                                <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--table-divider)', display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-secondary)' }}>
-                                    <IconCheck size={16} /><span>目标踏频 <strong style={{ color: 'var(--text-primary)' }}>90 RPM</strong> • 功率基于 {totalMass}kg 总重估算</span>
+                                    {/* Cassette */}
+                                    <div className="ctrl-group">
+                                        <span className="ctrl-label">飞轮</span>
+                                        <select value={JSON.stringify(cassette)} onChange={e => setCassette(JSON.parse(e.target.value))}>
+                                            {presets.cassettes.map((c, i) => <option key={i} value={JSON.stringify(c)}>{c.min}-{c.max}T</option>)}
+                                        </select>
+                                    </div>
+
+                                    {/* Tire width */}
+                                    <div className="ctrl-group">
+                                        <span className="ctrl-label">胎宽</span>
+                                        <select value={tireWidth} onChange={e => setTireWidth(parseInt(e.target.value))}>
+                                            {[23, 25, 28, 30, 32, 35, 38, 40, 42].map(w => <option key={w} value={w}>{w}c</option>)}
+                                        </select>
+                                    </div>
+
+                                    {/* Slope */}
+                                    <div className="ctrl-group">
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                                            <span className="ctrl-label" style={{ marginBottom: 0 }}>设定坡度</span>
+                                            <span className="badge badge-blue" style={{ fontSize: 11 }}>{slope}%</span>
+                                        </div>
+                                        <input type="range" min="0" max="15" step="1" value={slope} onChange={e => setSlope(parseInt(e.target.value))} />
+                                    </div>
+
+                                    {/* Divider */}
+                                    <div style={{ borderTop: '1px solid var(--table-divider)', marginBottom: 18 }}></div>
+
+                                    {/* Weight */}
+                                    <div className="ctrl-group">
+                                        <span className="ctrl-label">重量</span>
+                                        <div style={{ background: 'var(--input-bg)', padding: 10, borderRadius: 12, border: '1px solid var(--input-border)', backdropFilter: 'blur(10px)' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                                                <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 500 }}>人 (kg)</span>
+                                                <input type="number" value={riderWeight} onChange={e => setRiderWeight(Number(e.target.value))} />
+                                            </div>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                                                <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 500 }}>车 (kg)</span>
+                                                <input type="number" value={bikeWeight} onChange={e => setBikeWeight(Number(e.target.value))} />
+                                            </div>
+                                            <div style={{ textAlign: 'right', fontSize: 14, fontWeight: 800, color: 'var(--accent)' }}>
+                                                = {riderWeight + bikeWeight} kg
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-                                    <table className="data-table">
-                                        <thead><tr><th>时速</th><th>功率</th><th>推荐牙盘</th><th>推荐飞轮</th><th>踏频</th></tr></thead>
-                                        <tbody>
-                                            {flatGuide.map((item, idx) => (
-                                                <tr key={idx}>
-                                                    <td><span style={{ fontWeight: 700, fontSize: 15 }}>{item.speed}</span> <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>km/h</span></td>
-                                                    <td><span className="badge badge-yellow"><IconLightning size={11} />{item.power}W</span></td>
-                                                    {item.front ? (<>
-                                                        <td><span className={`badge ${item.ring === '大盘' || item.ring === '单盘' ? 'badge-purple' : 'badge-blue'}`}>{item.ring} ({item.front}T)</span></td>
-                                                        <td><span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{item.rear}T</span> <span style={{ fontSize: 10, color: 'var(--text-tertiary)', marginLeft: 6 }}>#{item.idx + 1}</span></td>
-                                                        <td>
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                                                <span style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: Math.abs(item.rpm - 90) > 10 ? 'var(--badge-orange-text)' : 'var(--badge-green-text)' }}>
-                                                                    {item.rpm} <span style={{ fontSize: 10, fontWeight: 400, color: 'var(--text-tertiary)' }}>rpm</span>
-                                                                </span>
-                                                                <div className="cadence-bar" style={{ width: 60 }}>
-                                                                    <div className="cadence-fill" style={{ width: `${Math.min(item.rpm || 0, 120) / 1.2}%`, background: Math.abs(item.rpm - 90) > 10 ? 'var(--badge-orange-text)' : 'var(--badge-green-text)' }}></div>
+                            </div>
+                        </aside>
+
+                        {/* Main Area */}
+                        <main className="main-area">
+
+                            {/* Flat Road Guide */}
+                            <section style={{ marginBottom: 32 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                                    <div className="section-icon" style={{ background: 'linear-gradient(135deg, #007AFF, #5856D6)' }}><IconWind size={20} /></div>
+                                    <h2 style={{ fontSize: 22, fontWeight: 800, margin: 0, letterSpacing: '-0.01em' }}>平路巡航 (0%)</h2>
+                                </div>
+                                <div className="glass" style={{ borderRadius: 20, overflow: 'hidden' }}>
+                                    <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--table-divider)', display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-secondary)' }}>
+                                        <IconCheck size={16} /><span>目标踏频 <strong style={{ color: 'var(--text-primary)' }}>85\u201395 RPM</strong> · 功率基于 {totalMass}kg 总重 + 现代 Crr 模型</span>
+                                    </div>
+                                    <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                                        <table className="data-table">
+                                            <thead><tr><th>时速</th><th>功率</th><th>推荐牙盘</th><th>推荐飞轮</th><th>踏频</th></tr></thead>
+                                            <tbody>
+                                                {flatGuide.map((item, idx) => (
+                                                    <tr key={idx}>
+                                                        <td><span style={{ fontWeight: 700, fontSize: 15 }}>{item.speed}</span> <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>km/h</span></td>
+                                                        <td><span className="badge badge-yellow"><IconLightning size={11} />{item.power}W</span></td>
+                                                        {item.front ? (<>
+                                                            <td><span className={`badge ${item.ring === '大盘' || item.ring === '单盘' ? 'badge-purple' : 'badge-blue'}`}>{item.ring} ({item.front}T)</span></td>
+                                                            <td><span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{item.rear}T</span> <span style={{ fontSize: 10, color: 'var(--text-tertiary)', marginLeft: 6 }}>#{item.idx + 1}</span></td>
+                                                            <td>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                                                    <span style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums',
+                                                                        color: item.rpm >= 85 && item.rpm <= 95 ? 'var(--badge-green-text)'
+                                                                            : item.rpm >= 75 && item.rpm <= 105 ? 'var(--badge-orange-text)'
+                                                                            : 'var(--badge-red-text)' }}>
+                                                                        {item.rpm} <span style={{ fontSize: 10, fontWeight: 400, color: 'var(--text-tertiary)' }}>rpm</span>
+                                                                    </span>
+                                                                    <div className="cadence-bar" style={{ width: 60 }}>
+                                                                        <div className="cadence-fill" style={{ width: `${Math.min(item.rpm || 0, 120) / 1.2}%`,
+                                                                            background: item.rpm >= 85 && item.rpm <= 95 ? 'var(--badge-green-text)'
+                                                                                : item.rpm >= 75 && item.rpm <= 105 ? 'var(--badge-orange-text)'
+                                                                                : 'var(--badge-red-text)' }}></div>
+                                                                    </div>
                                                                 </div>
-                                                            </div>
-                                                        </td>
-                                                    </>) : (<td colSpan="3" style={{ color: 'var(--text-tertiary)', fontStyle: 'italic', fontSize: 12 }}>无效档位</td>)}
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
+                                                            </td>
+                                                        </>) : (<td colSpan="3" style={{ color: 'var(--text-tertiary)', fontStyle: 'italic', fontSize: 12 }}>无效档位</td>)}
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
+                            </section>
+
+                            {/* Climbing + Descent */}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
+                                {/* Climbing */}
+                                <section>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                                        <div className="section-icon" style={{ background: 'linear-gradient(135deg, #FF9500, #FF3B30)' }}><IconMountain size={20} /></div>
+                                        <h2 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>爬坡 ({slope}%)</h2>
+                                    </div>
+                                    <div className="glass" style={{ borderRadius: 20, padding: 24, minHeight: 280, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                                        <div>
+                                            <div className="info-row">
+                                                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>预估均速</span>
+                                                <span style={{ fontSize: 28, fontWeight: 800 }}>~{slopeGuide.estimatedClimbSpeed.toFixed(1)} <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-tertiary)' }}>km/h</span></span>
+                                            </div>
+                                            <div className="badge badge-yellow" style={{ width: '100%', justifyContent: 'space-between', padding: '12px 16px', borderRadius: 14, marginBottom: 20 }}>
+                                                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconLightning size={14} /> 所需功率</span>
+                                                <span style={{ fontSize: 22, fontWeight: 800, fontFamily: 'monospace' }}>{slopeGuide.climbPower}W</span>
+                                            </div>
+                                            <div style={{ background: 'var(--card-inner)', borderRadius: 16, padding: 20, border: '1px solid var(--table-divider)', marginBottom: 16 }}>
+                                                <h3 style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12, marginTop: 0 }}>推荐档位</h3>
+                                                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
+                                                    <span style={{ fontSize: 28, fontWeight: 800, color: 'var(--accent)' }}>{slopeGuide.bestClimbGear?.front}T</span>
+                                                    <span style={{ color: 'var(--text-tertiary)' }}>×</span>
+                                                    <span style={{ fontSize: 28, fontWeight: 800 }}>{slopeGuide.bestClimbGear?.rear}T</span>
+                                                </div>
+                                                <div style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)' }}></div>
+                                                    第 <strong>{slopeGuide.bestClimbGear?.idx + 1}</strong> 片 (最轻)
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div className="info-row">
+                                                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>预计踏频</span>
+                                                <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 18, color: slopeGuide.bestClimbGear?.rpm < 60 ? 'var(--badge-red-text)' : 'var(--badge-green-text)' }}>
+                                                    {slopeGuide.bestClimbGear?.rpm} <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-tertiary)' }}>rpm</span>
+                                                </span>
+                                            </div>
+                                            {slopeGuide.bestClimbGear?.rpm < 60 && (
+                                                <div className="badge badge-red" style={{ width: '100%', padding: '10px 14px', borderRadius: 12, fontSize: 12, gap: 8 }}>
+                                                    <IconAlert size={14} />
+                                                    <span>踏频过低！膝盖压力极大。建议{isSingleChainring ? '更换更小的牙盘' : '更换更大的飞轮'}\u3002</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </section>
+
+                                {/* Descent */}
+                                <section>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                                        <div className="section-icon" style={{ background: 'linear-gradient(135deg, #34C759, #30B0C7)' }}><IconTrendingDown size={20} /></div>
+                                        <h2 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>放坡 (-{slope}%)</h2>
+                                    </div>
+                                    <div className="glass" style={{ borderRadius: 20, padding: 24, minHeight: 280, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                                        <div>
+                                            <div className="info-row">
+                                                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>冲刺速度</span>
+                                                <span style={{ fontSize: 28, fontWeight: 800 }}>{slopeGuide.descentTargetSpeed.toFixed(0)} <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-tertiary)' }}>km/h+</span></span>
+                                            </div>
+                                            <div style={{ background: 'var(--card-inner)', borderRadius: 16, padding: 20, border: '1px solid var(--table-divider)', marginBottom: 16 }}>
+                                                <h3 style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12, marginTop: 0 }}>推荐档位</h3>
+                                                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
+                                                    <span style={{ fontSize: 28, fontWeight: 800, color: 'var(--badge-purple-text)' }}>{slopeGuide.bestDescentGear?.front}T</span>
+                                                    <span style={{ color: 'var(--text-tertiary)' }}>×</span>
+                                                    <span style={{ fontSize: 28, fontWeight: 800 }}>{slopeGuide.bestDescentGear?.rear}T</span>
+                                                </div>
+                                                <div style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--badge-purple-text)' }}></div>
+                                                    第 <strong>{slopeGuide.bestDescentGear?.idx + 1}</strong> 片 (最重)
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div className="info-row">
+                                                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>预计踏频</span>
+                                                <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 18, color: slopeGuide.bestDescentGear?.rpm > 110 ? 'var(--badge-orange-text)' : 'var(--text-primary)' }}>
+                                                    {slopeGuide.bestDescentGear?.rpm} <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-tertiary)' }}>rpm</span>
+                                                </span>
+                                            </div>
+                                            {slopeGuide.bestDescentGear?.rpm > 110 && (
+                                                <div className="badge badge-yellow" style={{ width: '100%', padding: '10px 14px', borderRadius: 12, fontSize: 12, gap: 8 }}>
+                                                    <IconAlert size={14} />
+                                                    <span>注意\uff1a如果这已经是最大档位，您将踩空 (Spin out)。</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </section>
                             </div>
-                        </section>
-
-                        {/* ═══ Climbing + Descent ═══ */}
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24 }}>
-                            {/* Climbing */}
-                            <section>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, padding: '0 8px' }}>
-                                    <div className="section-icon" style={{ background: 'linear-gradient(135deg, #FF9500, #FF3B30)' }}><IconMountain size={20} /></div>
-                                    <h2 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>爬坡 ({slope}%)</h2>
-                                </div>
-                                <div className="glass" style={{ borderRadius: 20, padding: 24, height: 'calc(100% - 56px)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                                    <div>
-                                        <div className="info-row">
-                                            <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>预估均速</span>
-                                            <span style={{ fontSize: 28, fontWeight: 800 }}>~{slopeGuide.estimatedClimbSpeed.toFixed(1)} <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-tertiary)' }}>km/h</span></span>
-                                        </div>
-                                        <div className="badge badge-yellow" style={{ width: '100%', justifyContent: 'space-between', padding: '12px 16px', borderRadius: 14, marginBottom: 20 }}>
-                                            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconLightning size={14} /> 所需功率</span>
-                                            <span style={{ fontSize: 22, fontWeight: 800, fontFamily: 'monospace' }}>{slopeGuide.climbPower}W</span>
-                                        </div>
-                                        <div style={{ background: 'var(--card-inner)', borderRadius: 16, padding: 20, border: '1px solid var(--table-divider)', marginBottom: 16 }}>
-                                            <h3 style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12, marginTop: 0 }}>推荐档位</h3>
-                                            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
-                                                <span style={{ fontSize: 28, fontWeight: 800, color: 'var(--accent)' }}>{slopeGuide.bestClimbGear?.front}T</span>
-                                                <span style={{ color: 'var(--text-tertiary)' }}>×</span>
-                                                <span style={{ fontSize: 28, fontWeight: 800 }}>{slopeGuide.bestClimbGear?.rear}T</span>
-                                            </div>
-                                            <div style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)' }}></div>
-                                                第 <strong>{slopeGuide.bestClimbGear?.idx + 1}</strong> 片 (最轻)
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div className="info-row">
-                                            <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>预计踏频</span>
-                                            <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 18, color: slopeGuide.bestClimbGear?.rpm < 60 ? 'var(--badge-red-text)' : 'var(--badge-green-text)' }}>
-                                                {slopeGuide.bestClimbGear?.rpm} <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-tertiary)' }}>rpm</span>
-                                            </span>
-                                        </div>
-                                        {slopeGuide.bestClimbGear?.rpm < 60 && (
-                                            <div className="badge badge-red" style={{ width: '100%', padding: '10px 14px', borderRadius: 12, fontSize: 12, gap: 8 }}>
-                                                <IconAlert size={14} />
-                                                <span>踏频过低！膝盖压力极大。建议{isSingleChainring ? '更换更小的牙盘' : '更换更大的飞轮'}。</span>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </section>
-
-                            {/* Descent */}
-                            <section>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, padding: '0 8px' }}>
-                                    <div className="section-icon" style={{ background: 'linear-gradient(135deg, #34C759, #30B0C7)' }}><IconTrendingDown size={20} /></div>
-                                    <h2 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>放坡 (-{slope}%)</h2>
-                                </div>
-                                <div className="glass" style={{ borderRadius: 20, padding: 24, height: 'calc(100% - 56px)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                                    <div>
-                                        <div className="info-row">
-                                            <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>冲刺速度</span>
-                                            <span style={{ fontSize: 28, fontWeight: 800 }}>{slopeGuide.descentTargetSpeed.toFixed(0)} <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-tertiary)' }}>km/h+</span></span>
-                                        </div>
-                                        <div style={{ background: 'var(--card-inner)', borderRadius: 16, padding: 20, border: '1px solid var(--table-divider)', marginBottom: 16 }}>
-                                            <h3 style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12, marginTop: 0 }}>推荐档位</h3>
-                                            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
-                                                <span style={{ fontSize: 28, fontWeight: 800, color: 'var(--badge-purple-text)' }}>{slopeGuide.bestDescentGear?.front}T</span>
-                                                <span style={{ color: 'var(--text-tertiary)' }}>×</span>
-                                                <span style={{ fontSize: 28, fontWeight: 800 }}>{slopeGuide.bestDescentGear?.rear}T</span>
-                                            </div>
-                                            <div style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--badge-purple-text)' }}></div>
-                                                第 <strong>{slopeGuide.bestDescentGear?.idx + 1}</strong> 片 (最重)
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div className="info-row">
-                                            <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>预计踏频</span>
-                                            <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 18, color: slopeGuide.bestDescentGear?.rpm > 110 ? 'var(--badge-orange-text)' : 'var(--text-primary)' }}>
-                                                {slopeGuide.bestDescentGear?.rpm} <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-tertiary)' }}>rpm</span>
-                                            </span>
-                                        </div>
-                                        {slopeGuide.bestDescentGear?.rpm > 110 && (
-                                            <div className="badge badge-yellow" style={{ width: '100%', padding: '10px 14px', borderRadius: 12, fontSize: 12, gap: 8 }}>
-                                                <IconAlert size={14} />
-                                                <span>注意：如果这已经是最大档位，您将踩空 (Spin out)。</span>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </section>
-                        </div>
-
+                        </main>
                     </div>
                 </div>
             );
