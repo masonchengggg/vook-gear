@@ -693,7 +693,7 @@
             };
 
             const flatGuide = useMemo(() => {
-                const speeds = [10, 13, 15, 18, 20, 23, 25, 28, 30, 33, 35, 38, 40, 43, 45, 48, 50];
+                const speeds = [10, 13, 15, 18, 20, 23, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50];
 
                 const bestOnRing = (targetSpeed, ringSize, ringName, avoidCross = true) => {
                     let best = null, bestScore = 1e6;
@@ -722,7 +722,7 @@
                 }
 
                 // ── Shimano Di2 Synchro Shift ──
-                const SYNCHRO_GATE = 4;
+                const SYNCHRO_GATE = 3; // cassette position: shift small→big when rear ≤ position 3 (14T for 11-34T)
 
                 // Phase 1: small ring sequence
                 const smallSeq = speeds.map(ts => bestOnRing(ts, chainring.small, '小盘'));
@@ -746,7 +746,7 @@
                 }
 
                 // Phase 4: build final Di2 sequence
-                return speeds.map((ts, i) => {
+                const raw = speeds.map((ts, i) => {
                     if (i < shiftIdx || shiftIdx < 0) {
                         const s = smallSeq[i];
                         const chainEff = s && s.idx >= cassetteCogs.length - 2 ? 0.98 : 1.0;
@@ -760,6 +760,18 @@
                     const chainEff = b && b.idx < 2 ? 0.98 : 1.0;
                     return { speed: ts, power: calculatePower(ts, 0, chainEff), ...b };
                 });
+
+                // Dedup: only show rows where gear combination changes
+                const deduped = [];
+                raw.forEach(r => {
+                    if (!r || !r.ring) return;
+                    const key = r.ring + '-' + r.front + '-' + r.rear;
+                    if (deduped.length === 0 || key !== deduped[deduped.length - 1]._key) {
+                        deduped.push({ ...r, _key: key });
+                    }
+                });
+                return deduped;
+
             }, [chainring, cassetteCogs, isSingleChainring, tireWidth, totalMass]);
 
             const slopeGuide = useMemo(() => {
@@ -927,7 +939,7 @@
                                 </div>
                                 <div className="glass" style={{ borderRadius: 20, overflow: 'hidden' }}>
                                     <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--table-divider)', display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-secondary)' }}>
-                                        <IconCheck size={16} /><span>目标踏频 <strong style={{ color: 'var(--text-primary)' }}>85\u201395 RPM</strong> · 功率基于 {totalMass}kg 总重 + 现代 Crr 模型</span>
+                                        <IconCheck size={16} /><span>目标踏频 <strong style={{ color: 'var(--text-primary)' }}>85–95 RPM</strong> · 功率基于 {totalMass}kg 总重 + 现代 Crr 模型</span>
                                     </div>
                                     <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
                                         <table className="data-table">
