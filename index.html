@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Gear Ratio Coach — Vook One 2.0 Edition</title>
-    <meta name="description" content="公路车/瓜车齿比功率计算器，支持 1x/2x 传动系统，Vook One 2.0 默认配置。">
+    <title>Gear Ratio Coach</title>
+    <meta name="description" content="公路车/瓜车齿比功率计算器，支持 1x/2x 传动系统，Shimano 7120 默认配置。">
     <!-- PWA -->
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -524,7 +524,7 @@
                     { label: '11-28T (平路)', min: 11, max: 28 },
                     { label: '11-30T (综合)', min: 11, max: 30 },
                     { label: '11-32T (爬坡)', min: 11, max: 32 },
-                    { label: '11-34T (爬墙)', min: 11, max: 34 },
+                    { label: '11-34T (爬墙)', min: 11, max: 34, cogs: [11, 12, 13, 14, 15, 17, 19, 21, 24, 27, 30, 34] },
                     { label: '11-42T (单盘)', min: 11, max: 42 },
                     { label: '10-44T (XPLR)', min: 10, max: 44 },
                     { label: '10-50T (Eagle)', min: 10, max: 50 },
@@ -532,14 +532,14 @@
             };
 
             // ── State ──
-            const [isSingleChainring, setIsSingleChainring] = useState(true);
-            const [chainring, setChainring] = useState(presets.chainrings1x[0]);
-            const [cassette, setCassette] = useState(presets.cassettes[0]);
-            const [cassetteSpeed, setCassetteSpeed] = useState(13);
-            const [tireWidth, setTireWidth] = useState(28);
+            const [isSingleChainring, setIsSingleChainring] = useState(false);
+            const [chainring, setChainring] = useState(presets.chainrings2x[0]);
+            const [cassette, setCassette] = useState(presets.cassettes[4]);
+            const [cassetteSpeed, setCassetteSpeed] = useState(12);
+            const [tireWidth, setTireWidth] = useState(30);
             const [slope, setSlope] = useState(5);
-            const [riderWeight, setRiderWeight] = useState(75);
-            const [bikeWeight, setBikeWeight] = useState(8.75);
+            const [riderWeight, setRiderWeight] = useState(74);
+            const [bikeWeight, setBikeWeight] = useState(7.2);
 
             useEffect(() => {
                 if (isSingleChainring) {
@@ -643,11 +643,11 @@
                                     transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', justifyContent: 'center'
                                 }}>{isDark ? <IconSun /> : <IconMoon />}</button>
                             </div>
-                            <p style={{ color: 'var(--text-secondary)', fontSize: 13, fontWeight: 500, margin: 0 }}>Vook One 2.0 Edition • 1x13 Drivetrain Ready</p>
+                            <p style={{ color: 'var(--text-secondary)', fontSize: 13, fontWeight: 500, margin: 0 }}>Shimano 7120 Edition • 2x12 Drivetrain</p>
                         </header>
 
                         {/* Settings Panel */}
-                        <div className="glass sticky-settings" style={{ borderRadius: 20, padding: 24, marginBottom: 32, position: 'sticky', top: 8, zIndex: 50 }}>
+                        <div className="glass sticky-settings" style={{ borderRadius: 20, padding: 24, marginBottom: 32 }}>
                             {/* Row 1: Mode toggle + Weight */}
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 20, paddingBottom: 20, borderBottom: '1px solid var(--table-divider)', alignItems: 'center', justifyContent: 'space-between' }}>
                                 <div style={{ display: 'flex', background: 'var(--input-bg)', padding: 4, borderRadius: 10, backdropFilter: 'blur(10px)', border: '1px solid var(--input-border)' }}>
@@ -674,11 +674,25 @@
                                     <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6, marginLeft: 4 }}>
                                         牙盘 ({isSingleChainring ? '1x' : '2x'})
                                     </label>
-                                    <select value={JSON.stringify(chainring)} onChange={e => setChainring(JSON.parse(e.target.value))}>
-                                        {(isSingleChainring ? presets.chainrings1x : presets.chainrings2x).map((c, i) => (
-                                            <option key={i} value={JSON.stringify(c)}>{isSingleChainring ? `${c.big}T` : `${c.big}/${c.small}T`} ({c.label.split(' ')[0]})</option>
-                                        ))}
-                                    </select>
+                                    {isSingleChainring ? (
+                                        <div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--input-bg)', backdropFilter: 'blur(20px) saturate(160%)', border: '1px solid var(--input-border)', borderRadius: 12, padding: '6px 14px', boxShadow: 'var(--input-shadow)', transition: 'all 0.2s ease' }}>
+                                                <input type="number" value={chainring.big} min={24} max={60}
+                                                    onChange={e => { const v = Math.max(24, Math.min(60, parseInt(e.target.value) || 24)); setChainring({ label: v + 'T 自定义', small: 0, big: v }); }}
+                                                    style={{ width: 40, border: 'none', background: 'transparent', fontSize: 15, fontWeight: 700, textAlign: 'center', padding: '6px 0', color: 'var(--text-primary)', outline: 'none' }} />
+                                                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>T</span>
+                                            </div>
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8 }}>
+                                                <span key={32} onClick={() => setChainring({ label: '32T (自定义)', small: 0, big: 32 })} style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: chainring.big === 32 ? 'var(--accent)' : 'var(--input-bg)', color: chainring.big === 32 ? 'white' : 'var(--text-secondary)', border: chainring.big === 32 ? '1px solid transparent' : '1px solid var(--input-border)', transition: 'all 0.15s ease', whiteSpace: 'nowrap' }}>32</span><span key={34} onClick={() => setChainring({ label: '34T (自定义)', small: 0, big: 34 })} style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: chainring.big === 34 ? 'var(--accent)' : 'var(--input-bg)', color: chainring.big === 34 ? 'white' : 'var(--text-secondary)', border: chainring.big === 34 ? '1px solid transparent' : '1px solid var(--input-border)', transition: 'all 0.15s ease', whiteSpace: 'nowrap' }}>34</span><span key={36} onClick={() => setChainring({ label: '36T (自定义)', small: 0, big: 36 })} style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: chainring.big === 36 ? 'var(--accent)' : 'var(--input-bg)', color: chainring.big === 36 ? 'white' : 'var(--text-secondary)', border: chainring.big === 36 ? '1px solid transparent' : '1px solid var(--input-border)', transition: 'all 0.15s ease', whiteSpace: 'nowrap' }}>36</span><span key={38} onClick={() => setChainring({ label: '38T (自定义)', small: 0, big: 38 })} style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: chainring.big === 38 ? 'var(--accent)' : 'var(--input-bg)', color: chainring.big === 38 ? 'white' : 'var(--text-secondary)', border: chainring.big === 38 ? '1px solid transparent' : '1px solid var(--input-border)', transition: 'all 0.15s ease', whiteSpace: 'nowrap' }}>38</span><span key={40} onClick={() => setChainring({ label: '40T (自定义)', small: 0, big: 40 })} style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: chainring.big === 40 ? 'var(--accent)' : 'var(--input-bg)', color: chainring.big === 40 ? 'white' : 'var(--text-secondary)', border: chainring.big === 40 ? '1px solid transparent' : '1px solid var(--input-border)', transition: 'all 0.15s ease', whiteSpace: 'nowrap' }}>40</span><span key={42} onClick={() => setChainring({ label: '42T (自定义)', small: 0, big: 42 })} style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: chainring.big === 42 ? 'var(--accent)' : 'var(--input-bg)', color: chainring.big === 42 ? 'white' : 'var(--text-secondary)', border: chainring.big === 42 ? '1px solid transparent' : '1px solid var(--input-border)', transition: 'all 0.15s ease', whiteSpace: 'nowrap' }}>42</span><span key={44} onClick={() => setChainring({ label: '44T (自定义)', small: 0, big: 44 })} style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: chainring.big === 44 ? 'var(--accent)' : 'var(--input-bg)', color: chainring.big === 44 ? 'white' : 'var(--text-secondary)', border: chainring.big === 44 ? '1px solid transparent' : '1px solid var(--input-border)', transition: 'all 0.15s ease', whiteSpace: 'nowrap' }}>44</span><span key={46} onClick={() => setChainring({ label: '46T (自定义)', small: 0, big: 46 })} style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: chainring.big === 46 ? 'var(--accent)' : 'var(--input-bg)', color: chainring.big === 46 ? 'white' : 'var(--text-secondary)', border: chainring.big === 46 ? '1px solid transparent' : '1px solid var(--input-border)', transition: 'all 0.15s ease', whiteSpace: 'nowrap' }}>46</span><span key={48} onClick={() => setChainring({ label: '48T (自定义)', small: 0, big: 48 })} style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: chainring.big === 48 ? 'var(--accent)' : 'var(--input-bg)', color: chainring.big === 48 ? 'white' : 'var(--text-secondary)', border: chainring.big === 48 ? '1px solid transparent' : '1px solid var(--input-border)', transition: 'all 0.15s ease', whiteSpace: 'nowrap' }}>48</span><span key={50} onClick={() => setChainring({ label: '50T (自定义)', small: 0, big: 50 })} style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: chainring.big === 50 ? 'var(--accent)' : 'var(--input-bg)', color: chainring.big === 50 ? 'white' : 'var(--text-secondary)', border: chainring.big === 50 ? '1px solid transparent' : '1px solid var(--input-border)', transition: 'all 0.15s ease', whiteSpace: 'nowrap' }}>50</span><span key={52} onClick={() => setChainring({ label: '52T (自定义)', small: 0, big: 52 })} style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: chainring.big === 52 ? 'var(--accent)' : 'var(--input-bg)', color: chainring.big === 52 ? 'white' : 'var(--text-secondary)', border: chainring.big === 52 ? '1px solid transparent' : '1px solid var(--input-border)', transition: 'all 0.15s ease', whiteSpace: 'nowrap' }}>52</span><span key={54} onClick={() => setChainring({ label: '54T (自定义)', small: 0, big: 54 })} style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: chainring.big === 54 ? 'var(--accent)' : 'var(--input-bg)', color: chainring.big === 54 ? 'white' : 'var(--text-secondary)', border: chainring.big === 54 ? '1px solid transparent' : '1px solid var(--input-border)', transition: 'all 0.15s ease', whiteSpace: 'nowrap' }}>54</span>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <select value={JSON.stringify(chainring)} onChange={e => setChainring(JSON.parse(e.target.value))}>
+                                            {presets.chainrings2x.map((c, i) => (
+                                                <option key={i} value={JSON.stringify(c)}>{c.label}</option>
+                                            ))}
+                                        </select>
+                                    )}
                                 </div>
                                 <div>
                                     <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6, marginLeft: 4 }}>速别</label>
@@ -687,19 +701,19 @@
                                         <option value={10}>10 Speed</option>
                                         <option value={11}>11 Speed</option>
                                         <option value={12}>12 Speed</option>
-                                        <option value={13}>13 Speed (Vook)</option>
+                                        <option value={13}>13 Speed</option>
                                     </select>
                                 </div>
                                 <div>
                                     <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6, marginLeft: 4 }}>飞轮</label>
                                     <select value={JSON.stringify(cassette)} onChange={e => setCassette(JSON.parse(e.target.value))}>
-                                        {presets.cassettes.map((c, i) => <option key={i} value={JSON.stringify(c)}>{c.min}-{c.max}T {c.label.includes('Vook') ? '(Vook)' : ''}</option>)}
+                                        {presets.cassettes.map((c, i) => <option key={i} value={JSON.stringify(c)}>{c.label}</option>)}
                                     </select>
                                 </div>
                                 <div>
                                     <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6, marginLeft: 4 }}>胎宽</label>
                                     <select value={tireWidth} onChange={e => setTireWidth(parseInt(e.target.value))}>
-                                        {[23, 25, 28, 32, 35, 38, 40, 42].map(w => <option key={w} value={w}>{w}c {w === 28 ? '(Vook)' : ''}</option>)}
+                                        {[23, 25, 28, 30, 32, 35, 38, 40, 42].map(w => <option key={w} value={w}>{w}c {w === 30 ? '(默认)' : ''}</option>)}
                                     </select>
                                 </div>
                                 <div style={{ background: 'var(--input-bg)', padding: 12, borderRadius: 14, border: '1px solid var(--input-border)', backdropFilter: 'blur(10px)' }}>

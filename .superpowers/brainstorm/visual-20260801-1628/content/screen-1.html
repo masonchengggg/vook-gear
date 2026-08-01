@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>Gear Ratio Coach · 界面改版方向</title>
+  <style>
+    *{box-sizing:border-box} body{margin:0;background:#f2f5f8;color:#18222d;font-family:"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif} .wrap{max-width:1440px;margin:0 auto;padding:38px 34px 70px} .eyebrow{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#5d758a;margin:0 0 12px}.title{font-size:34px;letter-spacing:-.045em;margin:0 0 12px}.lead{font-size:16px;line-height:1.75;color:#607080;max-width:850px;margin:0 0 32px}.note{display:flex;gap:10px;align-items:center;background:#e6eef5;border:1px solid #cbdbe8;border-radius:12px;color:#435c70;font-size:14px;padding:12px 15px;margin-bottom:28px}.note b{color:#133f60}.grid{display:grid;grid-template-columns:repeat(3,minmax(290px,1fr));gap:20px}.option{background:#fff;border:2px solid #dbe3e9;border-radius:18px;overflow:hidden;cursor:pointer;transition:.18s ease;box-shadow:0 8px 24px rgba(30,48,64,.05)}.option:hover{border-color:#5a8bb4;transform:translateY(-2px);box-shadow:0 14px 34px rgba(30,48,64,.1)}.option.selected{border-color:#1473a8;box-shadow:0 0 0 4px rgba(20,115,168,.12)}.top{padding:18px 19px 14px;border-bottom:1px solid #e8eef2;display:flex;justify-content:space-between;align-items:flex-start}.badge{font-weight:800;font-size:12px;color:#1473a8;background:#e7f3fa;border-radius:99px;padding:4px 9px}.top h2{font-size:18px;letter-spacing:-.025em;margin:8px 0 4px}.top p{font-size:13px;line-height:1.5;color:#687a88;margin:0}.preview{padding:16px;background:#edf2f5;min-height:415px}.copy{padding:15px 19px 19px}.copy h3{margin:0 0 7px;font-size:14px}.copy ul{font-size:13px;line-height:1.7;color:#607080;margin:0;padding-left:18px}.app{height:382px;overflow:hidden;border:1px solid #d6e0e7;border-radius:13px;background:#fbfcfd;box-shadow:0 8px 18px rgba(32,50,65,.1)}.appbar{height:48px;padding:0 15px;display:flex;align-items:center;justify-content:space-between;background:#fff;border-bottom:1px solid #e2e9ee}.brand{font-weight:800;letter-spacing:-.02em;font-size:13px}.subtitle{font-size:10px;color:#6d7d89}.dot{width:23px;height:23px;border-radius:50%;background:#eaf0f4}.metrics{padding:14px 15px 10px;display:flex;gap:9px}.metric{background:#17364b;border-radius:11px;color:#fff;flex:1;padding:11px 10px}.metric span{font-size:9px;color:#b9d0dd}.metric strong{display:block;font-size:21px;margin-top:2px;letter-spacing:-.06em}.metric.light{background:#dcecf4;color:#193c54}.metric.light span{color:#5e7d92}.controls{padding:0 15px}.control-title{font-size:11px;font-weight:800;color:#334957;margin:8px 0}.mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}.field{min-width:0;background:#fff;border:1px solid #d6e1e7;border-radius:8px;padding:7px 8px}.field label{display:block;font-size:9px;color:#708391;margin-bottom:3px}.field div{font-size:11px;color:#172b39;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:700}.field .caret{float:right;color:#7b94a4}.stage{padding:0 15px}.segment{display:flex;background:#ecf2f5;padding:3px;border-radius:8px;gap:2px}.segment span{font-size:10px;padding:5px 7px;flex:1;text-align:center;color:#718390}.segment .active{background:#fff;color:#17384e;border-radius:6px;font-weight:800;box-shadow:0 1px 3px rgba(0,0,0,.09)}.chart{height:65px;margin-top:11px;border-radius:9px;background:linear-gradient(180deg,#eff6f9,white);position:relative;overflow:hidden}.chart:after{content:"";position:absolute;left:9px;right:9px;bottom:12px;height:34px;border-radius:50% 50% 0 0/100% 100% 0 0;background:linear-gradient(90deg,transparent 0 4%,#4ca4c7 5% 8%,transparent 9% 13%,#4ca4c7 14% 17%,transparent 18% 22%,#4ca4c7 23% 26%,transparent 27% 31%,#4ca4c7 32% 35%,transparent 36% 40%,#4ca4c7 41% 44%,transparent 45% 49%,#4ca4c7 50% 53%,transparent 54% 58%,#4ca4c7 59% 62%,transparent 63% 67%,#4ca4c7 68% 71%,transparent 72% 76%,#4ca4c7 77% 80%,transparent 81% 85%,#4ca4c7 86% 89%,transparent 90% 100%);opacity:.65}.app.splitapp{display:grid;grid-template-columns:128px 1fr}.side{background:#17364b;padding:15px 10px;color:#d7e8f2}.side .brand{font-size:11px;color:#fff;margin:0 4px 18px}.side .nav{font-size:10px;padding:8px 7px;margin:2px 0;border-radius:7px}.side .nav.active{background:#2c576d;color:#fff;font-weight:700}.splitapp .appbar{grid-column:2}.splitapp .side{grid-row:1 / span 3}.splitapp .mainarea{grid-column:2;padding:13px 14px}.fullfield{margin-top:8px;padding:9px 10px;background:#fff;border:1px solid #cbdbe5;border-radius:8px}.fullfield span{font-size:9px;color:#718391}.fullfield b{float:right;font-size:11px}.drawer{margin-top:13px;background:#f5f8fa;border:1px dashed #c4d5df;border-radius:8px;padding:10px;font-size:10px;color:#678092;text-align:center}.race{background:#132a39;color:#eaf5fa}.race .appbar{background:#132a39;border-color:#2a4759;color:#fff}.race .subtitle{color:#9ab4c2}.race .dot{background:#28495c}.race .metrics{padding-bottom:7px}.race .metric{background:#1f485c;border:1px solid #3b6a80}.race .metric.light{background:#daf0f6;color:#163849}.race .control-title{color:#c6dce6}.race .field{background:#1b3c4e;border-color:#376277}.race .field label{color:#90afbd}.race .field div{color:#f3fbff}.race .segment{background:#1b3c4e}.race .segment span{color:#9ab7c3}.race .segment .active{background:#3d91b1;color:#fff}.race .chart{background:linear-gradient(180deg,#1a3b4e,#173241)}.race .chart:after{filter:brightness(1.35)}.race .calmbar{padding:10px 15px 0;display:flex;gap:7px}.pill{font-size:9px;border:1px solid #3f687a;color:#b9d4df;padding:5px 7px;border-radius:99px}.pill.active{background:#35a2c5;border-color:#35a2c5;color:#fff;font-weight:800}.recommend{margin-top:26px;background:#173f58;border-radius:15px;color:#e8f6fb;padding:20px 22px;display:flex;align-items:center;gap:15px}.recommend .mark{width:30px;height:30px;border-radius:9px;background:#2a9bc0;color:#fff;display:grid;place-items:center;font-weight:900}.recommend h3{margin:0 0 4px;font-size:14px}.recommend p{margin:0;color:#b7d5e2;font-size:13px;line-height:1.55}@media(max-width:980px){.grid{grid-template-columns:1fr}.app{height:430px}.preview{min-height:462px}}@media(max-width:600px){.wrap{padding:26px 16px 45px}.title{font-size:28px}.recommend{align-items:flex-start}.app{height:415px}}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <p class="eyebrow">Gear Ratio Coach · Redesign exploration</p>
+    <h1 class="title">先解决“参数难看又挤”的根问题</h1>
+    <p class="lead">当前界面的关键问题是：四个下拉框被压缩在同一行，控件宽度随文字长度变化，导致内容拥挤与溢出。三个方案都会使用<strong>固定网格、字段标签与完整值分行显示</strong>，因此不依赖“强行省略”来维持美观。</p>
+    <div class="note"><b>本轮只看方案：</b> 以下为静态视觉方向，不会修改你的计算逻辑或实际项目文件。</div>
+
+    <section class="grid" data-choice-group="layout" aria-label="选择界面布局方案">
+      <article class="option" data-choice="A-dashboard" onclick="window.toggleSelect(this)">
+        <div class="top"><div><span class="badge">A · 推荐</span><h2>骑行仪表盘</h2><p>结果优先，设置紧凑但永远可读</p></div><span>⌁</span></div>
+        <div class="preview"><div class="app">
+          <div class="appbar"><div><div class="brand">GEAR RATIO COACH</div><div class="subtitle">Shimano 105 R7120 · 2×12</div></div><div class="dot"></div></div>
+          <div class="metrics"><div class="metric"><span>当前齿比</span><strong>4.55</strong></div><div class="metric light"><span>90 rpm 对应</span><strong>44.7</strong></div></div>
+          <div class="controls"><div class="control-title">车辆配置 <small style="font-weight:400;color:#8aa0ae">· 点击任一项调整</small></div><div class="mini-grid"><div class="field"><label>牙盘</label><div>50 / 34T <i class="caret">⌄</i></div></div><div class="field"><label>飞轮</label><div>11–34T · 12速 <i class="caret">⌄</i></div></div><div class="field"><label>轮胎</label><div>700 × 30C <i class="caret">⌄</i></div></div><div class="field"><label>体重系统</label><div>81.2 kg <i class="caret">⌄</i></div></div></div></div>
+          <div class="stage"><div class="control-title">路况</div><div class="segment"><span class="active">平路 0%</span><span>缓坡 5%</span><span>爬坡 10%</span></div><div class="chart"></div></div>
+        </div></div>
+        <div class="copy"><h3>适合日常快速查齿比</h3><ul><li>首屏先看到「当前齿比 / 速度 / 踏频」</li><li>配置区保持 2 × 2 网格，不再挤成一排</li><li>默认只显示重要字段，进阶参数可折叠</li></ul></div>
+      </article>
+
+      <article class="option" data-choice="B-workbench" onclick="window.toggleSelect(this)">
+        <div class="top"><div><span class="badge">B · 高效</span><h2>训练工作台</h2><p>左侧配置，右侧专注结果与曲线</p></div><span>▦</span></div>
+        <div class="preview"><div class="app splitapp">
+          <aside class="side"><div class="brand">GEAR COACH</div><div class="nav active">传动配置</div><div class="nav">骑手与车辆</div><div class="nav">路况与空气</div><div class="nav">保存的预设</div></aside>
+          <div class="appbar"><div><div class="brand">传动配置</div><div class="subtitle">按分类设置，避免密集下拉框</div></div><div class="dot"></div></div>
+          <div class="mainarea"><div class="fullfield"><span>前牙盘</span><b>50 / 34T　⌄</b></div><div class="fullfield"><span>后飞轮</span><b>11–34T · 12 速　⌄</b></div><div class="fullfield"><span>轮胎周长</span><b>700 × 30C　⌄</b></div><div class="drawer">＋ 展开：车重、骑手体重、滚阻、CdA</div><div class="chart"></div></div>
+        </div></div>
+        <div class="copy"><h3>适合经常调整配置、对比方案</h3><ul><li>每个字段占满整行，文字不会被压缩</li><li>配置按类别拆开，学习成本最低</li><li>更像专业训练软件，扩展预设也方便</li></ul></div>
+      </article>
+
+      <article class="option" data-choice="C-ride" onclick="window.toggleSelect(this)">
+        <div class="top"><div><span class="badge">C · 沉浸</span><h2>骑行电脑卡片</h2><p>深色高对比，更接近运动设备</p></div><span>◉</span></div>
+        <div class="preview"><div class="app race">
+          <div class="appbar"><div><div class="brand">GEAR RATIO COACH</div><div class="subtitle">R7120 · 50/34 × 11/34</div></div><div class="dot"></div></div>
+          <div class="metrics"><div class="metric"><span>建议踏频</span><strong>87</strong></div><div class="metric light"><span>所需功率</span><strong>182</strong></div></div>
+          <div class="calmbar"><span class="pill active">巡航</span><span class="pill">爬坡</span><span class="pill">冲刺</span></div>
+          <div class="controls"><div class="control-title">当前配置</div><div class="mini-grid"><div class="field"><label>牙盘</label><div>50 / 34T <i class="caret">⌄</i></div></div><div class="field"><label>飞轮</label><div>11–34T <i class="caret">⌄</i></div></div><div class="field"><label>胎宽</label><div>30C <i class="caret">⌄</i></div></div><div class="field"><label>坡度</label><div>5% <i class="caret">⌄</i></div></div></div></div>
+          <div class="stage"><div class="chart"></div></div>
+        </div></div>
+        <div class="copy"><h3>适合手机、骑行前快速检查</h3><ul><li>深色高对比，强调核心数字与状态</li><li>视觉记忆点强，适合做成 PWA 主界面</li><li>专业感最强，但阅读信息密度会稍高</li></ul></div>
+      </article>
+    </section>
+
+    <aside class="recommend"><div class="mark">✓</div><div><h3>我的建议：选 A「骑行仪表盘」为主方向</h3><p>它兼顾桌面和手机：首屏直接给结果；设置仍然好找；且 2 × 2 固定网格能从结构上消除文字溢出。B 更偏专业配置工具，C 则更像一块运动码表。</p></div></aside>
+  </main>
+  <script src="/helper.js"></script>
+</body>
+</html>

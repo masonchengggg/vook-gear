@@ -1,7 +1,7 @@
 {
-    "name": "Gear Ratio Coach — Vook One 2.0",
+    "name": "Gear Ratio Coach",
     "short_name": "齿比教练",
-    "description": "公路车/瓜车齿比功率计算器，Vook One 2.0 Edition",
+    "description": "公路车/瓜车齿比功率计算器，Shimano 7120 Edition",
     "start_url": "./index.html",
     "scope": "./",
     "display": "standalone",

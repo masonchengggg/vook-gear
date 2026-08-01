@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gear Ratio Coach · 改版方向</title>
+<style>
+  :root { --ink:#122018; --muted:#647168; --line:#dbe1da; --canvas:#f3f5f1; --lime:#c8ef57; --lime-deep:#789f18; --white:#fff; --dark:#101711; --amber:#ffbb5a; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; color:var(--ink); background:var(--canvas); }
+  .wrap { width:min(1440px, calc(100% - 56px)); margin:0 auto; padding:54px 0 72px; }
+  .eyebrow { display:inline-flex; padding:7px 11px; border-radius:999px; color:#526251; background:#e2e8df; font-size:12px; font-weight:800; letter-spacing:.12em; }
+  h1 { font-size:clamp(30px, 4vw, 52px); line-height:1.1; letter-spacing:-.05em; margin:16px 0 13px; }
+  .lead { color:#5b685f; max-width:760px; font-size:16px; line-height:1.7; margin:0 0 35px; }
+  .grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:20px; align-items:stretch; }
+  .direction { position:relative; overflow:hidden; min-width:0; border:1px solid var(--line); border-radius:24px; background:#fff; box-shadow:0 14px 30px rgba(19,31,21,.05); }
+  .direction:hover { transform:translateY(-3px); box-shadow:0 22px 38px rgba(19,31,21,.10); transition:.2s ease; }
+  .mock { min-height:372px; padding:20px; }
+  .info { padding:20px 22px 23px; border-top:1px solid var(--line); }
+  .tag { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:800; letter-spacing:.09em; color:#607064; }
+  .dot { width:7px; height:7px; border-radius:50%; background:var(--lime-deep); }
+  h2 { font-size:21px; margin:8px 0 9px; letter-spacing:-.04em; }
+  .info p { color:#667269; font-size:13px; line-height:1.6; min-height:42px; margin:0 0 15px; }
+  button.choose { width:100%; border:0; border-radius:12px; padding:13px 15px; background:var(--dark); color:#fff; cursor:pointer; font:700 13px inherit; }
+  button.choose:hover { background:#253d2b; }
+  .note { margin-top:28px; padding:17px 19px; border-left:4px solid var(--lime-deep); background:#e8eee6; border-radius:0 14px 14px 0; color:#415147; font-size:14px; line-height:1.65; }
+
+  /* A: rider console */
+  .a { background:#131b15; color:white; border-radius:17px; padding:16px; }
+  .a-top, .b-top, .c-top { display:flex; align-items:center; justify-content:space-between; }
+  .brand { font-size:11px; font-weight:800; letter-spacing:.1em; }
+  .pill { font-size:10px; padding:5px 7px; border-radius:20px; background:rgba(255,255,255,.13); color:#d9e3d9; }
+  .a h3 { margin:25px 0 4px; font-size:25px; letter-spacing:-.06em; }
+  .a .sub { margin:0 0 20px; font-size:11px; color:#b8c4b8; }
+  .a-controls { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .control { min-width:0; border:1px solid rgba(255,255,255,.15); border-radius:11px; padding:9px; background:rgba(255,255,255,.07); }
+  .control span { display:block; font-size:9px; color:#9eab9f; margin-bottom:5px; }
+  .control strong { display:flex; justify-content:space-between; gap:4px; font-size:13px; white-space:nowrap; }
+  .chev { color:var(--lime); }
+  .a-chart { height:90px; margin-top:16px; border-radius:12px; background:linear-gradient(180deg, rgba(200,239,87,.25), rgba(200,239,87,0)); position:relative; overflow:hidden; }
+  .a-chart svg { width:100%; height:100%; position:absolute; inset:0; }
+  .a-metric { display:flex; align-items:end; justify-content:space-between; margin-top:12px; }
+  .a-metric b { font-size:31px; letter-spacing:-.07em; } .a-metric small { color:#aebbaF; font-size:10px; }
+
+  /* B: compact field sheet */
+  .b { background:#fafbf8; border-radius:17px; color:#183224; padding:16px; }
+  .b .brand { color:#355742; } .b .pill { background:#e5eee6; color:#426149; }
+  .b h3 { font-size:23px; letter-spacing:-.06em; margin:20px 0 3px; }
+  .b .sub { color:#819088; font-size:11px; margin:0 0 16px; }
+  .field-row { border:1px solid #dfe7df; background:white; border-radius:12px; padding:9px 11px; display:flex; justify-content:space-between; align-items:center; margin:7px 0; }
+  .field-row label { display:block; font-size:10px; font-weight:800; color:#708277; }
+  .field-row b { font-size:14px; white-space:nowrap; }
+  .b-result { border-radius:13px; background:#dff4b5; padding:13px; margin-top:12px; display:flex; align-items:center; justify-content:space-between; }
+  .b-result span { display:block; font-size:10px; font-weight:800; color:#496034; } .b-result strong { font-size:25px; letter-spacing:-.07em; }
+
+  /* C: data race */
+  .c { border-radius:17px; padding:16px; background:#17222d; color:#f6f8fb; }
+  .c .brand { color:#d4e0ed; } .c .pill { background:#2a4054; color:#bcd7ee; }
+  .c h3 { font-size:21px; letter-spacing:-.055em; margin:20px 0 4px; }.c .sub { color:#9aaebb; font-size:10px; margin:0 0 14px; }
+  .c-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; }
+  .stat { padding:10px 7px; background:#223343; border-radius:9px; }.stat span { font-size:9px; color:#9bb0c0; display:block; }.stat b { display:block; margin-top:4px; font-size:17px; letter-spacing:-.06em; white-space:nowrap; }
+  .c-controls { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-top:12px; }.c .control { border-color:#334b5e; background:#203244; }.c .control span { color:#a2b7c7; }.c .chev { color:#8cc5ff; }
+  .c-bars { display:flex; align-items:end; gap:5px; height:72px; margin-top:15px; padding:8px; background:#203244; border-radius:10px; }.bar { flex:1; border-radius:3px 3px 0 0; background:#8cc5ff; opacity:.9; }
+
+  @media (max-width: 980px) { .grid{grid-template-columns:1fr;}.mock{min-height:320px}.direction{display:grid;grid-template-columns:44% 56%;}.info{border-top:0;border-left:1px solid var(--line)}}
+  @media (max-width: 640px) { .wrap{width:min(100% - 30px, 720px); padding-top:32px}.direction{display:block}.info{border-left:0;border-top:1px solid var(--line)} }
+</style>
+</head>
+<body>
+  <main class="wrap">
+    <span class="eyebrow">GEAR RATIO COACH · VISUAL DIRECTION</span>
+    <h1>不只是“修下拉框”，而是重新建立骑行计算器的驾驶舱感。</h1>
+    <p class="lead">共性原则：将牙盘、速别、飞轮、胎宽从窄原生 select 改成有明确标签、完整数值和点击提示的大型选择控件；移动端改为底部抽屉选择，杜绝文字截断与误触。</p>
+
+    <section class="grid cards">
+      <article class="direction card" data-choice="rider-console">
+        <div class="mock">
+          <div class="a">
+            <div class="a-top"><span class="brand">GEAR RATIO COACH</span><span class="pill">SHIMANO 7120</span></div>
+            <h3>今日路况</h3><p class="sub">30c · 81.2 kg system weight</p>
+            <div class="a-controls">
+              <div class="control"><span>牙盘</span><strong>50 / 34T <i class="chev">⌄</i></strong></div>
+              <div class="control"><span>飞轮</span><strong>11 – 34T <i class="chev">⌄</i></strong></div>
+              <div class="control"><span>速别</span><strong>12 速 <i class="chev">⌄</i></strong></div>
+              <div class="control"><span>轮胎</span><strong>30c GP5000 <i class="chev">⌄</i></strong></div>
+            </div>
+            <div class="a-chart"><svg viewBox="0 0 260 90" preserveAspectRatio="none"><path d="M0,75 C34,45 47,74 79,44 S125,19 152,35 S208,27 260,7" fill="none" stroke="#c8ef57" stroke-width="3"/></svg></div>
+            <div class="a-metric"><div><small>平路巡航功率</small><br><b>214 W</b></div><small>28 km/h · 90 rpm</small></div>
+          </div>
+        </div>
+        <div class="info"><span class="tag"><i class="dot"></i>推荐 · 骑行仪表盘</span><h2>A. 骑行驾驶舱</h2><p>深色主视觉 + 荧光黄性能色，先展示结论，再让用户调参。适合骑前快速决策，最有“专业装备”感。</p><button class="choose" data-choice="rider-console">选择 A：骑行驾驶舱</button></div>
+      </article>
+
+      <article class="direction card" data-choice="clean-sheet">
+        <div class="mock">
+          <div class="b">
+            <div class="b-top"><span class="brand">GEAR RATIO</span><span class="pill">配置</span></div>
+            <h3>你的传动系统</h3><p class="sub">一行一个参数，阅读与调整都更从容</p>
+            <div class="field-row"><label>牙盘规格</label><b>50 / 34T&nbsp;⌄</b></div>
+            <div class="field-row"><label>飞轮规格</label><b>11 – 34T&nbsp;⌄</b></div>
+            <div class="field-row"><label>传动速别</label><b>12 速&nbsp;⌄</b></div>
+            <div class="field-row"><label>轮胎尺寸</label><b>30c GP5000&nbsp;⌄</b></div>
+            <div class="b-result"><span>当前平路推荐<br>90 rpm / 28 km/h</span><strong>214 W</strong></div>
+          </div>
+        </div>
+        <div class="info"><span class="tag"><i class="dot"></i>最稳妥 · 日常工具</span><h2>B. 极简配置单</h2><p>浅色、克制、表单可读性最高。设置区与结果区纵向排布，几乎没有学习成本，长期维护风险也最低。</p><button class="choose" data-choice="clean-sheet">选择 B：极简配置单</button></div>
+      </article>
+
+      <article class="direction card" data-choice="performance-data">
+        <div class="mock">
+          <div class="c">
+            <div class="c-top"><span class="brand">RIDE ANALYTICS</span><span class="pill">LIVE</span></div>
+            <h3>Route · 平路巡航</h3><p class="sub">当前配置下的传动与功率区间</p>
+            <div class="c-stats"><div class="stat"><span>齿比</span><b>4.55</b></div><div class="stat"><span>踏频</span><b>90 rpm</b></div><div class="stat"><span>功率</span><b>214 W</b></div></div>
+            <div class="c-controls"><div class="control"><span>牙盘</span><strong>50/34T <i class="chev">⌄</i></strong></div><div class="control"><span>飞轮</span><strong>11–34T <i class="chev">⌄</i></strong></div></div>
+            <div class="c-bars"><i class="bar" style="height:35%"></i><i class="bar" style="height:58%"></i><i class="bar" style="height:79%"></i><i class="bar" style="height:62%"></i><i class="bar" style="height:92%"></i><i class="bar" style="height:47%"></i><i class="bar" style="height:69%"></i></div>
+          </div>
+        </div>
+        <div class="info"><span class="tag"><i class="dot"></i>信息密度高 · 数据控</span><h2>C. 性能数据台</h2><p>像训练平台的分析面板：实时关键指标突出，图表更多。适合日后接入爬坡、风阻、训练区间等扩展。</p><button class="choose" data-choice="performance-data">选择 C：性能数据台</button></div>
+      </article>
+    </section>
+    <div class="note" id="indicator-text">请选择一个方向；选择后回到对话告诉我 A、B 或 C。我建议选 <strong>A</strong>：它最适合“骑前快速判断档位与功率”，且能保留一眼看清核心数据的乐趣。</div>
+  </main>
+</body>
+</html>
